@@ -32,7 +32,7 @@ export default function PurchaseOrderForm() {
   }, [id]);
 
   const fetchSuppliers = async () => {
-    const { data } = await supabase.from('suppliers').select('id, name').order('name');
+    const { data } = await supabase.from('suppliers').select('*').order('name');
     setSuppliers(data || []);
   };
 

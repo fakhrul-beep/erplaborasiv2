@@ -32,7 +32,7 @@ export default function OrderForm() {
   }, [id]);
 
   const fetchCustomers = async () => {
-    const { data } = await supabase.from('customers').select('id, name').order('name');
+    const { data } = await supabase.from('customers').select('*').order('name');
     setCustomers(data || []);
   };
 
