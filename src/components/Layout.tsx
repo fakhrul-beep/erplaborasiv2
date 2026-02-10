@@ -5,6 +5,8 @@ import Logo from './Logo';
 import {
   LayoutDashboard,
   Package,
+  Utensils,
+  Wheat,
   ShoppingCart,
   Truck,
   Users,
@@ -16,29 +18,108 @@ import {
   X,
   CreditCard,
   DollarSign,
-  UserCog
+  UserCog,
+  Container,
+  ShoppingBag,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['superadmin', 'sales', 'purchasing', 'finance'] },
-  { name: 'Inventory', href: '/inventory', icon: Package, roles: ['superadmin', 'sales', 'purchasing', 'finance'] },
-  { name: 'Sales', href: '/sales', icon: ShoppingCart, roles: ['superadmin', 'sales'] },
-  { name: 'Purchasing', href: '/purchasing', icon: Truck, roles: ['superadmin', 'purchasing'] },
-  { name: 'Customers', href: '/customers', icon: Users, roles: ['superadmin', 'sales'] },
-  { name: 'Suppliers', href: '/suppliers', icon: Building2, roles: ['superadmin', 'purchasing'] },
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['superadmin', 'sales', 'sales_equipment', 'sales_raw_material', 'purchasing', 'finance'] },
+  
+  // Section: Perlengkapan (Equipment)
+  { 
+    name: 'Perlengkapan', 
+    icon: Utensils, 
+    roles: ['superadmin', 'sales', 'sales_equipment', 'purchasing', 'finance'],
+    children: [
+      { name: 'Stok', href: '/inventory/equipment', icon: Container },
+      { name: 'Penjualan', href: '/sales/equipment', icon: ShoppingBag },
+      { name: 'Pembelian', href: '/purchasing/equipment', icon: Truck },
+    ]
+  },
+
+  // Section: Bahan Baku (Raw Materials)
+  { 
+    name: 'Bahan Baku', 
+    icon: Wheat, 
+    roles: ['superadmin', 'sales', 'sales_raw_material', 'purchasing', 'finance'],
+    children: [
+      { name: 'Stok', href: '/inventory/raw-materials', icon: Container },
+      { name: 'Penjualan', href: '/sales/raw-materials', icon: ShoppingBag },
+      { name: 'Pembelian', href: '/purchasing/raw-materials', icon: Truck },
+    ]
+  },
+  
+  { name: 'Customers', href: '/customers', icon: Users, roles: ['superadmin', 'sales', 'sales_equipment', 'sales_raw_material'] },
+  { name: 'Suppliers', href: '/suppliers', icon: Truck, roles: ['superadmin', 'purchasing'] },
   { name: 'Payment Verification', href: '/finance/payments', icon: CreditCard, roles: ['superadmin', 'finance'] },
   { name: 'Cashflow', href: '/finance/cashflow', icon: DollarSign, roles: ['superadmin', 'finance'] },
-  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['superadmin', 'sales', 'purchasing', 'finance'] },
+  { name: 'Reports', href: '/reports', icon: BarChart3, roles: ['superadmin', 'sales', 'sales_equipment', 'sales_raw_material', 'purchasing', 'finance'] },
   { name: 'User Management', href: '/admin/users', icon: UserCog, roles: ['superadmin'] },
-  { name: 'Settings', href: '/settings', icon: Settings, roles: ['superadmin', 'sales', 'purchasing', 'finance'] },
+  { name: 'Settings', href: '/settings', icon: Settings, roles: ['superadmin', 'sales', 'sales_equipment', 'sales_raw_material', 'purchasing', 'finance'] },
 ];
+
+interface NavItem {
+  name: string;
+  href?: string;
+  icon: any;
+  roles: string[];
+  children?: { name: string; href: string; icon: any }[];
+}
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<string[]>([]); // Default collapsed for everyone initially
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user, profile, loading } = useAuthStore();
+
+  // Effect to auto-expand sections based on role or active route
+  useEffect(() => {
+    if (profile) {
+      // If user is specific sales role, expand only their section
+      if (profile.role === 'sales_equipment') {
+        setExpandedSections(['Perlengkapan']);
+      } else if (profile.role === 'sales_raw_material') {
+         setExpandedSections(['Bahan Baku']);
+      } else if (['sales', 'superadmin', 'purchasing', 'finance'].includes(profile.role)) {
+         // For general roles, keep collapsed by default or expand based on current path?
+         // User request: "kelompok menu perlengkapan dan bahan baku selalu collapse hanya untuk user selain sales"
+         // This implies for sales (specific ones), it should probably be expanded or accessible.
+         // Let's interpret: "collapse by default for non-sales, expand for sales"
+         
+         // Actually, let's just default to collapsed for everyone except when they are on that page
+         // OR follow the instruction strictly:
+         // "kelompok menu perlengkapan dan bahan baku selalu collapse hanya untuk user selain sales"
+         // This means for 'sales' roles, it should be expanded? Or maybe just NOT forced collapsed.
+         
+         // Let's implement:
+         // 1. If sales_equipment, expand Equipment.
+         // 2. If sales_raw_material, expand Raw Materials.
+         // 3. For others, start collapsed (empty array).
+         // 4. Also expand if current URL matches child.
+      }
+      
+      // Auto-expand if active child
+      const activeSection = navigation.find(item => 
+        item.children?.some(child => location.pathname.startsWith(child.href))
+      );
+      if (activeSection) {
+        setExpandedSections(prev => Array.from(new Set([...prev, activeSection.name])));
+      }
+    }
+  }, [profile, location.pathname]);
+
+  const toggleSection = (sectionName: string) => {
+    setExpandedSections(prev => 
+      prev.includes(sectionName) 
+        ? prev.filter(name => name !== sectionName)
+        : [...prev, sectionName]
+    );
+  };
 
   const handleSignOut = async () => {
     try {
@@ -143,11 +224,64 @@ export default function Layout() {
             </div>
             <nav className="mt-5 flex-1 px-2 space-y-1">
               {filteredNavigation.map((item) => {
+                // If item has children, render as accordion/section
+                if (item.children) {
+                  const isExpanded = expandedSections.includes(item.name);
+                  const hasActiveChild = item.children.some(child => location.pathname.startsWith(child.href));
+                  
+                  return (
+                    <div key={item.name} className="space-y-1">
+                      <button
+                        onClick={() => toggleSection(item.name)}
+                        className={`group w-full flex items-center justify-between px-2 py-2 text-sm font-medium rounded-md ${
+                          hasActiveChild ? 'bg-gray-50 text-gray-900' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <item.icon className={`mr-3 h-6 w-6 flex-shrink-0 ${
+                            hasActiveChild ? 'text-primary' : 'text-gray-400 group-hover:text-gray-500'
+                          }`} />
+                          {item.name}
+                        </div>
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-gray-400" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                        )}
+                      </button>
+                      
+                      {isExpanded && (
+                        <div className="space-y-1 pl-11">
+                          {item.children.map((child) => {
+                            const isChildActive = location.pathname === child.href;
+                            return (
+                              <Link
+                                key={child.name}
+                                to={child.href}
+                                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
+                                  isChildActive
+                                    ? 'bg-accent text-primary'
+                                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                                }`}
+                              >
+                                <child.icon className={`mr-3 h-5 w-5 flex-shrink-0 ${
+                                  isChildActive ? 'text-primary' : 'text-gray-400 group-hover:text-gray-500'
+                                }`} />
+                                {child.name}
+                              </Link>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
                     key={item.name}
-                    to={item.href}
+                    to={item.href || '#'}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                       isActive
                         ? 'bg-accent text-primary'

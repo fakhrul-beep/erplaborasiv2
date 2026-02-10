@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'superadmin' | 'finance' | 'sales' | 'purchasing';
+  role: 'superadmin' | 'finance' | 'sales' | 'sales_equipment' | 'sales_raw_material' | 'purchasing';
   is_approved: boolean;
   is_active: boolean;
   created_at: string;
@@ -16,6 +16,9 @@ export interface Product {
   unit_price: number;
   stock_quantity: number;
   category: string;
+  image_url?: string;
+  cost_price?: number;
+  type: 'equipment' | 'raw_material';
   supplier_id: string;
   created_at: string;
   supplier?: Supplier;
@@ -49,7 +52,9 @@ export interface Order {
   order_date: string;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   total_amount: number;
-  payment_status: 'unpaid' | 'paid' | 'partial';
+  payment_status: 'pending' | 'paid' | 'partial' | 'refunded';
+  payment_proof_url?: string;
+  type: 'equipment' | 'raw_material';
   customer?: Customer;
   items?: OrderItem[];
 }
@@ -61,6 +66,10 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   total_price: number;
+  original_unit_price?: number;
+  price_change_reason?: string;
+  price_change_by?: string;
+  price_change_at?: string;
   product?: Product;
 }
 
@@ -70,6 +79,8 @@ export interface PurchaseOrder {
   order_date: string;
   status: 'draft' | 'ordered' | 'received' | 'cancelled';
   total_amount: number;
+  payment_proof_url?: string;
+  type: 'equipment' | 'raw_material';
   supplier?: Supplier;
   items?: PurchaseOrderItem[];
 }
@@ -86,7 +97,8 @@ export interface PurchaseOrderItem {
 
 export interface Payment {
   id: string;
-  order_id: string;
+  order_id?: string;
+  purchase_order_id?: string;
   amount: number;
   payment_date: string;
   payment_method: string;
@@ -96,6 +108,7 @@ export interface Payment {
   notes: string;
   created_at: string;
   order?: Order;
+  purchase_order?: PurchaseOrder;
 }
 
 export interface Transaction {

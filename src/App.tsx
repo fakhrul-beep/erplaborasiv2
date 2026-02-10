@@ -39,17 +39,35 @@ function App() {
           <Route element={<Layout />}>
             <Route path="/" element={<Dashboard />} />
             
-            <Route path="/inventory" element={<ProductList />} />
-            <Route path="/inventory/new" element={<ProductForm />} />
-            <Route path="/inventory/:id/edit" element={<ProductForm />} />
+            <Route path="/inventory/equipment" element={<ProductList type="equipment" />} />
+            <Route path="/inventory/equipment/new" element={<ProductForm type="equipment" />} />
+            <Route path="/inventory/equipment/:id/edit" element={<ProductForm type="equipment" />} />
+
+            <Route path="/inventory/raw-materials" element={<ProductList type="raw_material" />} />
+            <Route path="/inventory/raw-materials/new" element={<ProductForm type="raw_material" />} />
+            <Route path="/inventory/raw-materials/:id/edit" element={<ProductForm type="raw_material" />} />
             
-            <Route path="/sales" element={<OrderList />} />
+            {/* Sales Routes */}
             <Route path="/sales/new" element={<OrderForm />} />
             <Route path="/sales/:id/edit" element={<OrderForm />} />
+            <Route path="/sales/equipment" element={<OrderList type="equipment" />} />
+            <Route path="/sales/equipment/new" element={<OrderForm type="equipment" />} />
+            <Route path="/sales/equipment/:id/edit" element={<OrderForm type="equipment" />} />
             
-            <Route path="/purchasing" element={<PurchaseOrderList />} />
+            <Route path="/sales/raw-materials" element={<OrderList type="raw_material" />} />
+            <Route path="/sales/raw-materials/new" element={<OrderForm type="raw_material" />} />
+            <Route path="/sales/raw-materials/:id/edit" element={<OrderForm type="raw_material" />} />
+
+            {/* Purchasing Routes */}
             <Route path="/purchasing/new" element={<PurchaseOrderForm />} />
             <Route path="/purchasing/:id/edit" element={<PurchaseOrderForm />} />
+            <Route path="/purchasing/equipment" element={<PurchaseOrderList type="equipment" />} />
+            <Route path="/purchasing/equipment/new" element={<PurchaseOrderForm type="equipment" />} />
+            <Route path="/purchasing/equipment/:id/edit" element={<PurchaseOrderForm type="equipment" />} />
+
+            <Route path="/purchasing/raw-materials" element={<PurchaseOrderList type="raw_material" />} />
+            <Route path="/purchasing/raw-materials/new" element={<PurchaseOrderForm type="raw_material" />} />
+            <Route path="/purchasing/raw-materials/:id/edit" element={<PurchaseOrderForm type="raw_material" />} />
             
             <Route path="/customers" element={<CustomerList />} />
             <Route path="/customers/new" element={<CustomerForm />} />

@@ -7,7 +7,11 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
 
-export default function PurchaseOrderList() {
+interface PurchaseOrderListProps {
+  type?: 'equipment' | 'raw_material';
+}
+
+export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type for safety
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -21,16 +25,22 @@ export default function PurchaseOrderList() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [type]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
       // Fetch with standard relationship format
-      const { data, error } = await supabase
+      let query = supabase
         .from('purchase_orders')
         .select('*, suppliers(*)')
         .order('created_at', { ascending: false });
+
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
