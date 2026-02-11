@@ -7,7 +7,11 @@ import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
 
-export default function OrderList() {
+interface OrderListProps {
+  type?: 'equipment' | 'raw_material';
+}
+
+export default function OrderList({ type }: OrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,17 +36,21 @@ export default function OrderList() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [type]);
 
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      // Removed aliases to prevent crashes if Supabase behavior changes
-      // fetch customers, and order_items with nested products
-      const { data, error } = await supabase
+      let query = supabase
         .from('orders')
         .select('*, customers(*), order_items(*, products(*))')
         .order('created_at', { ascending: false });
+
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -161,10 +169,22 @@ export default function OrderList() {
     return customerName.includes(term) || orderId.includes(term);
   });
 
+  const getTitle = () => {
+    if (type === 'equipment') return 'Sales Orders (Perlengkapan)';
+    if (type === 'raw_material') return 'Sales Orders (Bahan Baku)';
+    return 'Sales Orders';
+  };
+
+  const getAddUrl = () => {
+    if (type === 'equipment') return '/sales/equipment/new';
+    if (type === 'raw_material') return '/sales/raw-materials/new';
+    return '/sales/new';
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Sales Orders</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">{getTitle()}</h1>
         <div className="flex space-x-2">
             <button
             onClick={fetchOrders}
@@ -174,7 +194,7 @@ export default function OrderList() {
             Refresh
             </button>
             <button
-            onClick={() => navigate('/sales/new')}
+            onClick={() => navigate(getAddUrl())}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
             >
             <Plus className="-ml-1 mr-2 h-5 w-5" />

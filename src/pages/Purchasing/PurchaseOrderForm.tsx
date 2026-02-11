@@ -4,22 +4,48 @@ import { supabase } from '../../lib/supabase';
 import { Product, Supplier } from '../../types';
 import { Save, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '../../store/authStore';
 
 interface POItemInput {
+  id?: string;
+  tempId?: string;
   product_id: string;
   quantity: number;
   unit_price: number;
   product?: Product;
 }
 
-export default function PurchaseOrderForm() {
+import PaymentSubmission from '../../components/PaymentSubmission';
+
+interface PurchaseOrderFormProps {
+  type?: 'equipment' | 'raw_material';
+}
+
+interface POFormData {
+  supplier_id: string;
+  status: string;
+  expected_date: string;
+  payment_proof_url: string;
+  notes: string;
+  type: 'equipment' | 'raw_material';
+}
+
+export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
-  const [supplierId, setSupplierId] = useState('');
+  const [formData, setFormData] = useState<POFormData>({
+    supplier_id: '',
+    status: 'draft',
+    expected_date: '',
+    payment_proof_url: '',
+    notes: '',
+    type: type || 'equipment'
+  });
   const [items, setItems] = useState<POItemInput[]>([]);
   
   // Totals
@@ -27,9 +53,18 @@ export default function PurchaseOrderForm() {
 
   useEffect(() => {
     fetchSuppliers();
-    fetchProducts();
     if (id) fetchOrder();
-  }, [id]);
+  }, [id, type]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [formData.type]);
+
+  useEffect(() => {
+    if (!id && type) {
+       setFormData(prev => ({ ...prev, type }));
+    }
+  }, [type, id]);
 
   const fetchSuppliers = async () => {
     const { data } = await supabase.from('suppliers').select('*').order('name');
@@ -37,7 +72,11 @@ export default function PurchaseOrderForm() {
   };
 
   const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('name');
+    let query = supabase.from('products').select('*').order('name');
+    if (formData.type) {
+      query = query.eq('type', formData.type);
+    }
+    const { data } = await query;
     setProducts(data || []);
   };
 
@@ -51,8 +90,16 @@ export default function PurchaseOrderForm() {
       
       if (error) throw error;
       if (order) {
-        setSupplierId(order.supplier_id);
+        setFormData({
+          supplier_id: order.supplier_id,
+          status: order.status,
+          expected_date: order.expected_date ? order.expected_date.split('T')[0] : '',
+          payment_proof_url: order.payment_proof_url || '',
+          notes: order.notes || '',
+          type: order.type || 'equipment'
+        });
         setItems(order.items.map((item: any) => ({
+          id: item.id,
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.unit_price,
@@ -94,6 +141,10 @@ export default function PurchaseOrderForm() {
     setItems(newItems);
   };
 
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) {
@@ -109,8 +160,10 @@ export default function PurchaseOrderForm() {
         const { error: orderError } = await supabase
           .from('purchase_orders')
           .update({ 
-            supplier_id: supplierId,
-            total_amount: totalAmount
+            supplier_id: formData.supplier_id,
+            total_amount: totalAmount,
+            payment_proof_url: formData.payment_proof_url,
+            notes: formData.notes
           })
           .eq('id', id);
         if (orderError) throw orderError;
@@ -120,10 +173,14 @@ export default function PurchaseOrderForm() {
         const { data: order, error: orderError } = await supabase
           .from('purchase_orders')
           .insert([{ 
-            supplier_id: supplierId,
+            supplier_id: formData.supplier_id,
             total_amount: totalAmount,
             status: 'draft',
-            order_date: new Date().toISOString()
+            order_date: new Date().toISOString(),
+            payment_proof_url: formData.payment_proof_url,
+            notes: formData.notes,
+            type: formData.type,
+            user_id: user?.id
           }])
           .select()
           .single();
@@ -148,9 +205,9 @@ export default function PurchaseOrderForm() {
 
       toast.success(id ? 'PO updated successfully' : 'PO created successfully');
       navigate('/purchasing');
-    } catch (error) {
-      console.error('Error saving PO:', error);
-      toast.error('Failed to save purchase order');
+    } catch (error: any) {
+      console.error('Error saving purchase order:', error);
+      toast.error(`Failed to save purchase order: ${error.message || error.error_description || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -174,8 +231,8 @@ export default function PurchaseOrderForm() {
               <label className="block text-sm font-medium text-gray-700">Supplier</label>
               <select
                 required
-                value={supplierId}
-                onChange={e => setSupplierId(e.target.value)}
+                value={formData.supplier_id}
+                onChange={e => setFormData({ ...formData, supplier_id: e.target.value })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
               >
                 <option value="">Select a supplier</option>
@@ -191,6 +248,47 @@ export default function PurchaseOrderForm() {
                  disabled
                  value={new Date().toLocaleDateString()}
                  className="mt-1 block w-full bg-gray-50 border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Payment Proof URL (Main Transaction)</label>
+              <input
+                type="url"
+                placeholder="https://example.com/receipt.jpg"
+                value={formData.payment_proof_url}
+                onChange={e => setFormData({ ...formData, payment_proof_url: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional: Direct link to the main payment receipt.
+              </p>
+            </div>
+
+            {!type && (
+               <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Order Type</label>
+                <select
+                  required
+                  value={formData.type}
+                  onChange={e => {
+                     setFormData({ ...formData, type: e.target.value as any });
+                     setItems([]);
+                  }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                >
+                  <option value="equipment">Equipment (Perlengkapan)</option>
+                  <option value="raw_material">Raw Material (Bahan Baku)</option>
+                </select>
+              </div>
+            )}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Notes</label>
+              <textarea
+                rows={3}
+                value={formData.notes}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
               />
             </div>
           </div>
@@ -210,7 +308,7 @@ export default function PurchaseOrderForm() {
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="flex items-end gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div key={item.id || item.tempId || index} className="flex items-end gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-700">Product</label>
                   <select
@@ -284,6 +382,14 @@ export default function PurchaseOrderForm() {
             </div>
           </div>
         </div>
+
+        {/* Payment Submission Section - Only visible in Edit Mode */}
+        {id && (
+          <PaymentSubmission 
+            purchaseOrderId={id} 
+            totalAmount={totalAmount} 
+          />
+        )}
 
         <div className="flex justify-end">
           <button

@@ -155,7 +155,9 @@ export default function UserManagement() {
                               onChange={(e) => handleRoleChange(user.id, e.target.value)}
                               className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm rounded-md"
                             >
-                              <option value="sales">Sales</option>
+                              <option value="sales">Sales (General)</option>
+                              <option value="sales_equipment">Sales (Perlengkapan)</option>
+                              <option value="sales_raw_material">Sales (Bahan Baku)</option>
                               <option value="purchasing">Purchasing</option>
                               <option value="finance">Finance</option>
                               <option value="superadmin">Superadmin</option>

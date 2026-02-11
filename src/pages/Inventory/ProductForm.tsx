@@ -5,7 +5,11 @@ import { Supplier } from '../../types';
 import { Save, ArrowLeft } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function ProductForm() {
+interface ProductFormProps {
+  type?: 'equipment' | 'raw_material';
+}
+
+export default function ProductForm({ type }: ProductFormProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -15,11 +19,20 @@ export default function ProductForm() {
     name: '',
     sku: '',
     description: '',
+    image_url: '',
     unit_price: 0,
     stock_quantity: 0,
     category: '',
+    type: type || 'equipment',
     supplier_id: ''
   });
+
+  useEffect(() => {
+    // Update form data type if prop changes and we are creating new
+    if (!id && type) {
+      setFormData(prev => ({ ...prev, type }));
+    }
+  }, [type, id]);
 
   useEffect(() => {
     fetchSuppliers();
@@ -45,9 +58,11 @@ export default function ProductForm() {
           name: data.name,
           sku: data.sku,
           description: data.description || '',
+          image_url: data.image_url || '',
           unit_price: data.unit_price,
           stock_quantity: data.stock_quantity,
           category: data.category,
+          type: data.type || 'equipment',
           supplier_id: data.supplier_id
         });
       }
@@ -76,12 +91,33 @@ export default function ProductForm() {
         if (error) throw error;
         toast.success('Product created successfully');
       }
-      navigate('/inventory');
-    } catch (error) {
+      
+      // Navigate back to correct list
+      if (formData.type === 'raw_material') {
+        navigate('/inventory/raw-materials');
+      } else {
+        navigate('/inventory/equipment');
+      }
+    } catch (error: any) {
       console.error('Error saving product:', error);
-      toast.error('Failed to save product');
+      toast.error(`Failed to save product: ${error.message || error.error_description || 'Unknown error'}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getTitle = () => {
+    if (id) return 'Edit Product';
+    if (type === 'raw_material') return 'New Raw Material';
+    if (type === 'equipment') return 'New Equipment';
+    return 'New Product';
+  };
+
+  const handleCancel = () => {
+    if (formData.type === 'raw_material') {
+      navigate('/inventory/raw-materials');
+    } else {
+      navigate('/inventory/equipment');
     }
   };
 
@@ -89,10 +125,10 @@ export default function ProductForm() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <button onClick={() => navigate('/inventory')} className="text-gray-500 hover:text-gray-700">
+          <button onClick={handleCancel} className="text-gray-500 hover:text-gray-700">
             <ArrowLeft className="h-6 w-6" />
           </button>
-          <h1 className="text-2xl font-semibold text-gray-900">{id ? 'Edit Product' : 'New Product'}</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">{getTitle()}</h1>
         </div>
       </div>
 
@@ -129,6 +165,18 @@ export default function ProductForm() {
                 onChange={e => setFormData({ ...formData, description: e.target.value })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
               />
+            </div>
+
+            <div className="sm:col-span-6">
+              <label className="block text-sm font-medium text-gray-700">Product Image URL</label>
+              <input
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                value={formData.image_url}
+                onChange={e => setFormData({ ...formData, image_url: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">Provide a direct link to the product image.</p>
             </div>
 
             <div className="sm:col-span-2">
@@ -170,6 +218,22 @@ export default function ProductForm() {
               />
             </div>
 
+            {/* Hidden Type Field or Selector if not provided via props */}
+            {!type && (
+               <div className="sm:col-span-3">
+                <label className="block text-sm font-medium text-gray-700">Type</label>
+                <select
+                  required
+                  value={formData.type}
+                  onChange={e => setFormData({ ...formData, type: e.target.value as any })}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                >
+                  <option value="equipment">Equipment (Perlengkapan)</option>
+                  <option value="raw_material">Raw Material (Bahan Baku)</option>
+                </select>
+              </div>
+            )}
+
             <div className="sm:col-span-3">
               <label className="block text-sm font-medium text-gray-700">Supplier</label>
               <select
@@ -189,7 +253,7 @@ export default function ProductForm() {
           <div className="flex justify-end">
             <button
               type="button"
-              onClick={() => navigate('/inventory')}
+              onClick={handleCancel}
               className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent mr-3"
             >
               Cancel

@@ -5,7 +5,11 @@ import { Product } from '../../types';
 import { Plus, Search, Edit, Trash2, Package, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export default function ProductList() {
+interface ProductListProps {
+  type?: 'equipment' | 'raw_material';
+}
+
+export default function ProductList({ type }: ProductListProps) {
   const [products, setProducts] = useState<any[]>([]); // Use any[] to avoid strict type crashes on partial data
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -13,17 +17,24 @@ export default function ProductList() {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [type]); // Re-fetch when type changes
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
       // Fetch products with supplier details. 
       // Using 'suppliers (name)' without alias to rely on default Supabase behavior.
-      const { data, error } = await supabase
+      let query = supabase
         .from('products')
         .select('*, suppliers (name)')
         .order('name');
+      
+      // Filter by type if provided
+      if (type) {
+        query = query.eq('type', type);
+      }
+
+      const { data, error } = await query;
       
       if (error) {
         throw error;
@@ -87,10 +98,28 @@ export default function ProductList() {
     );
   }
 
+  const getTitle = () => {
+    if (type === 'equipment') return 'Inventory Perlengkapan';
+    if (type === 'raw_material') return 'Inventory Bahan Baku';
+    return 'Inventory';
+  };
+
+  const getAddUrl = () => {
+    if (type === 'equipment') return '/inventory/equipment/new';
+    if (type === 'raw_material') return '/inventory/raw-materials/new';
+    return '/inventory/new';
+  };
+  
+  const getEditUrl = (id: string) => {
+    if (type === 'equipment') return `/inventory/equipment/${id}/edit`;
+    if (type === 'raw_material') return `/inventory/raw-materials/${id}/edit`;
+    return `/inventory/${id}/edit`;
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-semibold text-gray-900">Inventory</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">{getTitle()}</h1>
         <div className="flex space-x-2">
            <button
             onClick={fetchProducts}
@@ -100,7 +129,7 @@ export default function ProductList() {
             Refresh
           </button>
           <button
-            onClick={() => navigate('/inventory/new')}
+            onClick={() => navigate(getAddUrl())}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
           >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
@@ -146,9 +175,13 @@ export default function ProductList() {
                         <tr key={product.id || Math.random()}>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="flex-shrink-0 h-10 w-10 bg-primary-50 rounded-full flex items-center justify-center">
-                                <Package className="h-5 w-5 text-primary" />
-                              </div>
+                              {product.image_url ? (
+                                <img className="h-10 w-10 rounded-full object-cover" src={product.image_url} alt="" />
+                              ) : (
+                                <div className="flex-shrink-0 h-10 w-10 bg-primary-50 rounded-full flex items-center justify-center">
+                                  <Package className="h-5 w-5 text-primary" />
+                                </div>
+                              )}
                               <div className="ml-4">
                                 <div className="text-sm font-medium text-gray-900">{product.name || 'Unnamed Product'}</div>
                                 <div className="text-sm text-gray-500">
@@ -166,7 +199,7 @@ export default function ProductList() {
                             {product.stock_quantity || 0}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <button onClick={() => navigate(`/inventory/${product.id}/edit`)} className="text-primary hover:text-primary-hover mr-4">
+                            <button onClick={() => navigate(getEditUrl(product.id))} className="text-primary hover:text-primary-hover mr-4">
                               <Edit className="h-4 w-4" />
                             </button>
                             <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">

@@ -2,34 +2,75 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Product, Customer } from '../../types';
-import { Save, ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Save, ArrowLeft, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import PaymentSubmission from '../../components/PaymentSubmission';
+import { useAuthStore } from '../../store/authStore';
 
 interface OrderItemInput {
+  id?: string; // for existing items
+  tempId?: string; // for new items
   product_id: string;
   quantity: number;
   unit_price: number;
+  original_unit_price?: number;
+  price_change_reason?: string;
+  cost_price?: number;
   product?: Product;
 }
 
-export default function OrderForm() {
+interface OrderFormProps {
+  type?: 'equipment' | 'raw_material';
+product?: Product;
+}
+
+interface OrderFormData {
+  customer_id: string;
+  status: string;
+  payment_status: string;
+  payment_proof_url: string;
+  notes: string;
+  type: 'equipment' | 'raw_material';
+}
+
+export default function OrderForm({ type }: OrderFormProps) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { profile, user } = useAuthStore();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
-  const [customerId, setCustomerId] = useState('');
+  const [formData, setFormData] = useState<OrderFormData>({
+    customer_id: '',
+    status: 'pending',
+    payment_status: 'pending',
+    payment_proof_url: '',
+    notes: '',
+    type: type || 'equipment'
+  });
   const [items, setItems] = useState<OrderItemInput[]>([]);
   
   // Totals
   const totalAmount = items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
 
+  const canModifyPrice = ['superadmin', 'sales', 'sales_equipment', 'sales_raw_material'].includes(profile?.role || '');
+  const MAX_MARKUP_PERCENTAGE = 0.5; // 50% max markup above base price for safety check (optional)
+
   useEffect(() => {
     fetchCustomers();
-    fetchProducts();
     if (id) fetchOrder();
-  }, [id]);
+  }, [id, type]);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [formData.type]);
+
+  useEffect(() => {
+    if (!id && type) {
+       setFormData(prev => ({ ...prev, type }));
+    }
+  }, [type, id]);
 
   const fetchCustomers = async () => {
     const { data } = await supabase.from('customers').select('*').order('name');
@@ -37,7 +78,11 @@ export default function OrderForm() {
   };
 
   const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('name');
+    let query = supabase.from('products').select('*').order('name');
+    if (formData.type) {
+      query = query.eq('type', formData.type);
+    }
+    const { data } = await query;
     setProducts(data || []);
   };
 
@@ -51,11 +96,22 @@ export default function OrderForm() {
       
       if (error) throw error;
       if (order) {
-        setCustomerId(order.customer_id);
+        setFormData({
+          customer_id: order.customer_id,
+          status: order.status,
+          payment_status: order.payment_status,
+          payment_proof_url: order.payment_proof_url || '',
+          notes: order.notes || '',
+          type: order.type || 'equipment'
+        });
         setItems(order.items.map((item: any) => ({
+          id: item.id,
           product_id: item.product_id,
           quantity: item.quantity,
           unit_price: item.unit_price,
+          original_unit_price: item.original_unit_price || item.unit_price, // Fallback if old data
+          price_change_reason: item.price_change_reason || '',
+          cost_price: item.product?.cost_price || 0,
           product: item.product
         })));
       }
@@ -66,7 +122,7 @@ export default function OrderForm() {
   };
 
   const handleAddItem = () => {
-    setItems([...items, { product_id: '', quantity: 1, unit_price: 0 }]);
+    setItems([...items, { tempId: Math.random().toString(), product_id: '', quantity: 1, unit_price: 0 }]);
   };
 
   const handleRemoveItem = (index: number) => {
@@ -82,13 +138,20 @@ export default function OrderForm() {
     if (field === 'product_id') {
       const product = products.find(p => p.id === value);
       if (product) {
-        item.unit_price = product.unit_price;
+        item.unit_price = product.unit_price; // Base selling price
+        item.original_unit_price = product.unit_price;
+        item.cost_price = product.cost_price || 0;
         item.product = product;
+        item.price_change_reason = '';
       }
     }
     
     newItems[index] = item;
     setItems(newItems);
+  };
+
+  const calculateTotal = () => {
+    return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -97,6 +160,29 @@ export default function OrderForm() {
       toast.error('Please add at least one item');
       return;
     }
+
+    // Validate Price Changes
+    const modifiedItems = items.filter(item => 
+      item.original_unit_price !== undefined && item.unit_price !== item.original_unit_price
+    );
+
+    if (modifiedItems.length > 0) {
+      // Check for missing reasons
+      const missingReasons = modifiedItems.some(item => !item.price_change_reason || item.price_change_reason.trim() === '');
+      if (missingReasons) {
+        toast.error('Please provide a reason for all price modifications');
+        return;
+      }
+
+      // Explicit Confirmation
+      const confirmed = window.confirm(
+        `You have modified prices for ${modifiedItems.length} item(s). \n\n` +
+        `This will be logged for audit purposes. \n\n` +
+        `Are you sure you want to proceed?`
+      );
+      if (!confirmed) return;
+    }
+
     setLoading(true);
 
     try {
@@ -107,8 +193,10 @@ export default function OrderForm() {
         const { error: orderError } = await supabase
           .from('orders')
           .update({ 
-            customer_id: customerId,
-            total_amount: totalAmount
+            customer_id: formData.customer_id,
+            total_amount: totalAmount,
+            payment_proof_url: formData.payment_proof_url,
+            notes: formData.notes
           })
           .eq('id', id);
         if (orderError) throw orderError;
@@ -120,15 +208,13 @@ export default function OrderForm() {
         const { data: order, error: orderError } = await supabase
           .from('orders')
           .insert([{ 
-            customer_id: customerId,
-            total_amount: totalAmount,
-            status: 'pending',
-            payment_status: 'unpaid',
-            order_date: new Date().toISOString()
+            ...formData, 
+            total_amount: calculateTotal(),
+            user_id: user?.id 
           }])
           .select()
           .single();
-        
+
         if (orderError) throw orderError;
         orderId = order.id;
       }
@@ -139,7 +225,12 @@ export default function OrderForm() {
         product_id: item.product_id,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price
+        total_price: item.quantity * item.unit_price,
+        // Price Modification Tracking
+        original_unit_price: item.original_unit_price,
+        price_change_reason: item.unit_price !== item.original_unit_price ? item.price_change_reason : null,
+        price_change_by: item.unit_price !== item.original_unit_price ? user?.id : null,
+        price_change_at: item.unit_price !== item.original_unit_price ? new Date().toISOString() : null
       }));
 
       const { error: itemsError } = await supabase
@@ -150,9 +241,9 @@ export default function OrderForm() {
 
       toast.success(id ? 'Order updated successfully' : 'Order created successfully');
       navigate('/sales');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving order:', error);
-      toast.error('Failed to save order');
+      toast.error(`Failed to save order: ${error.message || error.error_description || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -170,15 +261,14 @@ export default function OrderForm() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Header Info */}
         <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">Customer</label>
               <select
                 required
-                value={customerId}
-                onChange={e => setCustomerId(e.target.value)}
+                value={formData.customer_id}
+                onChange={e => setFormData({ ...formData, customer_id: e.target.value })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
               >
                 <option value="">Select a customer</option>
@@ -194,6 +284,47 @@ export default function OrderForm() {
                  disabled
                  value={new Date().toLocaleDateString()}
                  className="mt-1 block w-full bg-gray-50 border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Payment Proof URL (Main Transaction)</label>
+              <input
+                type="url"
+                placeholder="https://example.com/receipt.jpg"
+                value={formData.payment_proof_url}
+                onChange={e => setFormData({ ...formData, payment_proof_url: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Optional: Direct link to the main payment receipt. For partial payments, use the section below after saving.
+              </p>
+            </div>
+
+            {!type && (
+               <div className="sm:col-span-2">
+                <label className="block text-sm font-medium text-gray-700">Order Type</label>
+                <select
+                  required
+                  value={formData.type}
+                  onChange={e => {
+                     setFormData({ ...formData, type: e.target.value as any });
+                     setItems([]); // Clear items when type changes to avoid mixing
+                  }}
+                  className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                >
+                  <option value="equipment">Equipment (Perlengkapan)</option>
+                  <option value="raw_material">Raw Material (Bahan Baku)</option>
+                </select>
+              </div>
+            )}
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700">Notes</label>
+              <textarea
+                rows={3}
+                value={formData.notes}
+                onChange={e => setFormData({ ...formData, notes: e.target.value })}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
               />
             </div>
           </div>
@@ -214,7 +345,7 @@ export default function OrderForm() {
 
           <div className="space-y-4">
             {items.map((item, index) => (
-              <div key={index} className="flex items-end gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <div key={item.id || item.tempId || index} className="flex items-end gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="flex-1">
                   <label className="block text-xs font-medium text-gray-700">Product</label>
                   <select
@@ -246,12 +377,44 @@ export default function OrderForm() {
                     <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">$</span>
                     <input
                       type="number"
-                      readOnly
+                      readOnly={!canModifyPrice}
                       value={item.unit_price}
-                      className="block w-full pl-7 border border-gray-300 rounded-md bg-gray-100 py-2 sm:text-sm"
+                      onChange={e => handleItemChange(index, 'unit_price', parseFloat(e.target.value))}
+                      className={`block w-full pl-7 border rounded-md py-2 sm:text-sm ${
+                        canModifyPrice ? 'border-gray-300 focus:ring-accent focus:border-accent' : 'border-gray-300 bg-gray-100'
+                      }`}
                     />
                   </div>
+                  {/* Price Warnings */}
+                  {item.product && (
+                    <div className="mt-1 space-y-1">
+                      {item.unit_price < (item.cost_price || 0) && (
+                        <p className="text-xs text-red-600 flex items-center">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> Below Cost
+                        </p>
+                      )}
+                      {item.original_unit_price && item.unit_price > item.original_unit_price * (1 + MAX_MARKUP_PERCENTAGE) && (
+                        <p className="text-xs text-orange-600 flex items-center">
+                          <AlertTriangle className="h-3 w-3 mr-1" /> High Markup
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
+                {/* Price Change Reason */}
+                {item.original_unit_price !== undefined && item.unit_price !== item.original_unit_price && (
+                  <div className="w-48">
+                    <label className="block text-xs font-medium text-gray-700 text-red-600">Change Reason *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Why changed?"
+                      value={item.price_change_reason || ''}
+                      onChange={e => handleItemChange(index, 'price_change_reason', e.target.value)}
+                      className="mt-1 block w-full border border-red-300 rounded-md shadow-sm py-2 px-3 sm:text-sm focus:ring-red-500 focus:border-red-500"
+                    />
+                  </div>
+                )}
                 <div className="w-32">
                   <label className="block text-xs font-medium text-gray-700">Total</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
@@ -287,10 +450,21 @@ export default function OrderForm() {
           </div>
         </div>
 
+        {/* Payment Submission Section - Only visible in Edit Mode */}
+        {id && (
+          <PaymentSubmission 
+            orderId={id} 
+            totalAmount={totalAmount} 
+          />
+        )}
+
         <div className="flex justify-end">
           <button
             type="button"
-            onClick={() => navigate('/sales')}
+            onClick={() => {
+              if (formData.type === 'raw_material') navigate('/sales/raw-materials');
+              else navigate('/sales/equipment');
+            }}
             className="bg-white py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent mr-3"
           >
             Cancel
