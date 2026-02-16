@@ -14,22 +14,9 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   if (loading) {
     console.log('ProtectedRoute: Loading...');
     return (
-      <div style={{ 
-        position: 'fixed', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        bottom: 0, 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        backgroundColor: '#f3f4f6',
-        zIndex: 9999,
-        color: '#333',
-        fontFamily: 'sans-serif'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <h2 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>Loading Application...</h2>
+      <div className="fixed inset-0 flex items-center justify-center bg-gray-100 z-50 text-gray-800 font-sans">
+        <div className="text-center">
+          <h2 className="text-2xl mb-4">Loading Application...</h2>
           <p>Please wait while we authenticate your session.</p>
         </div>
       </div>

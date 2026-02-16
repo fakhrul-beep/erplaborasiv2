@@ -92,18 +92,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center" style={{ display: 'flex', justifyContent: 'center' }}>
+        <div className="flex justify-center">
           <Logo className="h-20 w-auto" />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900" style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '1.875rem', fontWeight: 800, color: '#111827' }}>
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
           {isSignUp ? 'Create an account' : 'Sign in to your account'}
         </h2>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md" style={{ marginTop: '2rem' }}>
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
           <form className="space-y-6" onSubmit={handleAuth}>
             {isSignUp && (
               <div>
@@ -164,8 +164,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0.5rem 1rem', borderRadius: '0.375rem', backgroundColor: '#1A7DB9', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <Loader2 className="animate-spin h-5 w-5" />
@@ -193,8 +192,7 @@ export default function Login() {
             <div className="mt-6">
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-                style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0.5rem 1rem', borderRadius: '0.375rem', color: '#1A7DB9', backgroundColor: '#F0F7FC', border: 'none', cursor: 'pointer' }}
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer"
               >
                 {isSignUp ? 'Sign in instead' : 'Create an account'}
               </button>

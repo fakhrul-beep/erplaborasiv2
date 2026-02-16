@@ -37,7 +37,7 @@ const CACHE_TTL = 30000; // 30 seconds
  * PGRST205: Could not find the table in the schema cache.
  */
 export const withRetry = async <T>(
-  operation: () => Promise<{ data: T | null; error: any }>,
+  operation: () => PromiseLike<{ data: T | null; error: any }>,
   maxRetries = 3,
   initialDelay = 1000,
   cacheKey?: string,

@@ -163,6 +163,7 @@ export default function ShipmentDetail() {
           .from('shipment_orders')
           .select(`
             id,
+            vendor_id,
             status,
             type,
             category,
