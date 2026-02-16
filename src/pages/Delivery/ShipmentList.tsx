@@ -17,6 +17,7 @@ export default function ShipmentList({ type }: ShipmentListProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [shipments, setShipments] = useState<any[]>([]);
+  const [vendors, setVendors] = useState<any[]>([]);
   const title = type === 'sales' ? 'Pengiriman Bahan Baku' : 'Pengiriman Perlengkapan';
   const transactionHeader = type === 'sales' ? 'Customer' : 'Supplier';
   const emptyMessage = type === 'sales' ? 'Belum ada data pengiriman bahan baku.' : 'Belum ada data pengiriman perlengkapan.';
@@ -34,6 +35,7 @@ export default function ShipmentList({ type }: ShipmentListProps) {
   useEffect(() => {
     const controller = new AbortController();
     fetchShipments(controller.signal);
+    fetchVendors();
 
     // Set up real-time subscription for shipments
     const channel = supabase
@@ -58,6 +60,17 @@ export default function ShipmentList({ type }: ShipmentListProps) {
     };
   }, [type]);
 
+  async function fetchVendors() {
+    try {
+      const { data, error } = await supabase.from('shipping_vendors').select('id, name');
+      if (!error && data) {
+        setVendors(data);
+      }
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+    }
+  }
+
   async function fetchShipments(signal?: AbortSignal) {
     try {
       if (!profile || !allowedRoles.includes(profile.role)) {
@@ -77,7 +90,7 @@ export default function ShipmentList({ type }: ShipmentListProps) {
             category,
             tracking_number,
             created_at,
-            vendor:shipping_vendors(name),
+            vendor_id,
             order:orders(id, customer:customers(name)),
             purchase_order:purchase_orders(id, supplier:suppliers(name))
           `)
@@ -190,7 +203,7 @@ export default function ShipmentList({ type }: ShipmentListProps) {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center text-sm text-gray-900">
                         <Truck className="mr-2 h-4 w-4 text-gray-400" />
-                        {shipment.vendor?.name || '-'}
+                        {vendors.find(v => v.id === shipment.vendor_id)?.name || '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
