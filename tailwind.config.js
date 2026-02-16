@@ -10,34 +10,34 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#2D3F50',
-          hover: '#1F2C38', // Darker shade
-          light: '#3E5469', // Lighter shade
-          50: '#F2F4F6',
-          100: '#E1E5E9',
-          200: '#C4CCD3',
-          300: '#A6B2BD',
-          400: '#8999A7',
-          500: '#6B7F91',
-          600: '#4E667B',
-          700: '#2D3F50', // Base
-          800: '#243240',
-          900: '#1B2630',
+          DEFAULT: '#1A7DB9',
+          hover: '#156494', // Darker shade (600)
+          light: '#5CB1DF', // Lighter shade (400)
+          50: '#F0F7FC',
+          100: '#E0EFF9',
+          200: '#BFE0F2',
+          300: '#9ED0EC',
+          400: '#5CB1DF',
+          500: '#1A7DB9', // Base
+          600: '#156494',
+          700: '#104B6F',
+          800: '#0B324A',
+          900: '#051925',
         },
         accent: {
-          DEFAULT: '#B1DF19',
-          hover: '#9CC716', // Darker shade
-          light: '#C2E647', // Lighter shade
-          50: '#F9FDE8',
-          100: '#F4FCCF',
-          200: '#E8F99E',
-          300: '#DDF56D',
-          400: '#D1F23C',
-          500: '#B1DF19', // Base
-          600: '#8EB314',
-          700: '#6A860F',
-          800: '#47590A',
-          900: '#232D05',
+          DEFAULT: '#EBB138',
+          hover: '#BC8D2D', // Darker shade (600)
+          light: '#F3CE99', // Lighter shade (400)
+          50: '#FEFBF5',
+          100: '#FDF6EB',
+          200: '#FAECD6',
+          300: '#F8E2C2',
+          400: '#F3CE99',
+          500: '#EBB138', // Base
+          600: '#BC8D2D',
+          700: '#8D6A22',
+          800: '#5E4716',
+          900: '#2F230B',
         }
       }
     },

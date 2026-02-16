@@ -1,3 +1,4 @@
+
 import { create } from 'zustand';
 import { Session, User as AuthUser } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
@@ -28,46 +29,77 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
   checkUser: async () => {
+    // Safety timeout to prevent infinite loading state
+    const timeoutId = setTimeout(() => {
+        console.warn("Auth check timed out, forcing load completion");
+        set((state) => (state.loading ? { loading: false } : {}));
+    }, 5000);
+
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      // 1. Get Session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      let profile: UserProfile | null = null;
-      if (session?.user) {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        profile = data;
+      if (sessionError) {
+          console.error("Auth Session Error:", sessionError);
+          set({ loading: false, user: null, session: null });
+          clearTimeout(timeoutId);
+          return;
+      }
+
+      // 2. If no session, stop loading
+      if (!session?.user) {
+        set({ user: null, session: null, loading: false });
+        clearTimeout(timeoutId);
+        return;
+      }
+
+      // 3. Get Profile
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching user profile:', profileError);
       }
 
       set({ 
         session, 
-        user: session?.user ?? null, 
-        profile,
+        user: session.user, 
+        profile: profile || null,
         loading: false 
       });
+      
+      clearTimeout(timeoutId);
 
-      supabase.auth.onAuthStateChange(async (_event, session) => {
-        let newProfile: UserProfile | null = null;
-        if (session?.user) {
-          const { data } = await supabase
+      // 4. Listen for changes
+      // Note: This adds a new listener every time checkUser is called.
+      // Ideally should be outside or managed to avoid duplicates.
+      // For now, it's acceptable if checkUser is only called on mount.
+      supabase.auth.onAuthStateChange(async (_event, newSession) => {
+        if (newSession?.user) {
+             const { data: newProfile } = await supabase
             .from('users')
             .select('*')
-            .eq('id', session.user.id)
+            .eq('id', newSession.user.id)
             .single();
-          newProfile = data;
+            
+            set({ 
+                session: newSession, 
+                user: newSession.user, 
+                profile: newProfile || null,
+                loading: false 
+            });
+        } else {
+            set({ session: null, user: null, profile: null, loading: false });
         }
-        set({ 
-          session, 
-          user: session?.user ?? null, 
-          profile: newProfile,
-          loading: false 
-        });
       });
+
     } catch (error) {
       console.error('Error checking user:', error);
       set({ loading: false });
+      clearTimeout(timeoutId);
     }
   },
 }));

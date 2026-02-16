@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Payment } from '../types';
-import { Plus, Trash2, ExternalLink, FileText } from 'lucide-react';
+import { Plus, Trash2, ExternalLink, FileText, Upload, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 
@@ -18,9 +18,9 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
   const [newPayment, setNewPayment] = useState({
     amount: totalAmount,
     payment_method: 'bank_transfer',
-    proof_url: '',
     notes: ''
   });
+  const [file, setFile] = useState<File | null>(null);
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
@@ -47,18 +47,54 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+      if (!allowedTypes.includes(selectedFile.type)) {
+        toast.error('Invalid file type. Please upload JPG, PNG, or PDF.');
+        return;
+      }
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        toast.error('File size exceeds 5MB limit.');
+        return;
+      }
+      setFile(selectedFile);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!orderId && !purchaseOrderId) return;
+    if (!file) {
+        toast.error('Please upload a payment proof.');
+        return;
+    }
     
     setLoading(true);
     try {
+      // 1. Upload file
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${orderId || purchaseOrderId}_${Date.now()}.${fileExt}`;
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(fileName);
+
+      const { data: { user } } = await supabase.auth.getUser();
+
       const payload: any = {
         amount: newPayment.amount,
         payment_method: newPayment.payment_method,
-        proof_url: newPayment.proof_url,
+        proof_url: publicUrl,
         notes: newPayment.notes,
-        status: 'pending'
+        status: 'unverified',
+        created_by: user?.id
       };
 
       if (orderId) payload.order_id = orderId;
@@ -68,13 +104,18 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
       
       if (error) throw error;
       
+      // Update Order payment status as well
+      if (orderId) {
+          await supabase.from('orders').update({ payment_status: 'unverified' }).eq('id', orderId);
+      }
+
       toast.success('Payment proof submitted successfully');
       setNewPayment({
         amount: 0,
         payment_method: 'bank_transfer',
-        proof_url: '',
         notes: ''
       });
+      setFile(null);
       setShowForm(false);
       fetchPayments();
       if (onPaymentUpdate) onPaymentUpdate();
@@ -104,7 +145,7 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
     .reduce((sum, p) => sum + p.amount, 0);
   
   const totalPending = payments
-    .filter(p => p.status === 'pending')
+    .filter(p => p.status === 'unverified')
     .reduce((sum, p) => sum + p.amount, 0);
 
   return (
@@ -134,9 +175,9 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
            <p className="text-xs text-green-700">Verified Paid</p>
            <p className="text-lg font-bold text-green-700">${totalPaid.toFixed(2)}</p>
         </div>
-        <div className="bg-yellow-50 p-3 rounded-md">
-           <p className="text-xs text-yellow-700">Pending Verification</p>
-           <p className="text-lg font-bold text-yellow-700">${totalPending.toFixed(2)}</p>
+        <div className="bg-orange-50 p-3 rounded-md">
+           <p className="text-xs text-orange-700">Pending Verification</p>
+           <p className="text-lg font-bold text-orange-700">${totalPending.toFixed(2)}</p>
         </div>
       </div>
 
@@ -175,16 +216,38 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-sm font-medium text-gray-700">Proof URL (Image/Doc Link)</label>
-              <input
-                type="url"
-                required
-                placeholder="https://..."
-                value={newPayment.proof_url}
-                onChange={e => setNewPayment({ ...newPayment, proof_url: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
-              />
-              <p className="mt-1 text-xs text-gray-500">Paste a link to the payment proof (e.g. Google Drive, Dropbox, or Image URL)</p>
+              <label className="block text-sm font-medium text-gray-700">Payment Proof (Max 5MB)</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md bg-white">
+                <div className="space-y-1 text-center">
+                    {file ? (
+                        <div className="flex flex-col items-center">
+                            <Check className="mx-auto h-12 w-12 text-green-500" />
+                            <p className="text-sm text-gray-600">{file.name}</p>
+                            <button
+                                type="button"
+                                onClick={() => setFile(null)}
+                                className="text-xs text-red-600 hover:text-red-800"
+                            >
+                                Remove
+                            </button>
+                        </div>
+                    ) : (
+                        <>
+                            <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                            <div className="flex text-sm text-gray-600 justify-center">
+                                <label
+                                    htmlFor="file-upload-sub"
+                                    className="relative cursor-pointer bg-white rounded-md font-medium text-primary hover:text-primary-hover focus-within:outline-none"
+                                >
+                                    <span>Upload a file</span>
+                                    <input id="file-upload-sub" name="file-upload-sub" type="file" className="sr-only" onChange={handleFileChange} accept=".jpg,.jpeg,.png,.pdf" />
+                                </label>
+                            </div>
+                            <p className="text-xs text-gray-500">PNG, JPG, PDF up to 5MB</p>
+                        </>
+                    )}
+                </div>
+              </div>
             </div>
 
             <div className="sm:col-span-2">
@@ -208,10 +271,10 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
             </button>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !file}
               className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-hover focus:outline-none disabled:opacity-50"
             >
-              Submit Payment
+              {loading ? 'Uploading...' : 'Submit Payment'}
             </button>
           </div>
         </form>
@@ -255,13 +318,13 @@ export default function PaymentSubmission({ orderId, purchaseOrderId, totalAmoun
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       payment.status === 'verified' ? 'bg-green-100 text-green-800' :
                       payment.status === 'rejected' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
+                      'bg-orange-100 text-orange-800'
                     }`}>
                       {payment.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    {payment.status === 'pending' && (
+                    {payment.status === 'unverified' && (
                       <button onClick={() => handleDelete(payment.id)} className="text-red-600 hover:text-red-900">
                         <Trash2 className="h-4 w-4" />
                       </button>

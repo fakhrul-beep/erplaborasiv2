@@ -21,37 +21,43 @@ graph TD
 
 ## 2. Technology Description
 
-- **Frontend**: React@18 + tailwindcss@3 + vite
-- **Initialization Tool**: vite-init
-- **Backend**: Supabase (BaaS)
-- **Database**: Supabase PostgreSQL
-- **Authentication**: Supabase Auth
-- **File Storage**: Supabase Storage
-- **Real-time**: Supabase Realtime for live updates
+* **Frontend**: React\@18 + tailwindcss\@3 + vite
+
+* **Initialization Tool**: vite-init
+
+* **Backend**: Supabase (BaaS)
+
+* **Database**: Supabase PostgreSQL
+
+* **Authentication**: Supabase Auth
+
+* **File Storage**: Supabase Storage
+
+* **Real-time**: Supabase Realtime for live updates
 
 ## 3. Route definitions
 
-| Route | Purpose |
-|-------|---------|
-| / | Dashboard - Main overview with key metrics and quick actions |
-| /login | Login page - User authentication with email/password |
-| /inventory | Inventory management - Product catalog and stock control |
-| /inventory/products | Product list - Browse and manage all products |
-| /inventory/stock | Stock control - Update quantities and locations |
-| /inventory/movements | Stock movements - Track all inventory transactions |
-| /sales | Sales management - Order processing and customer management |
-| /sales/orders | Order list - View and manage all customer orders |
-| /sales/orders/new | New order - Create customer order with product selection |
-| /sales/customers | Customer list - Manage customer profiles and history |
-| /purchasing | Purchase management - Supplier orders and receiving |
-| /purchasing/orders | Purchase orders - Create and track supplier orders |
-| /purchasing/quotations | Quotations - Request and compare supplier quotes |
-| /purchasing/receiving | Receiving - Record received goods and update inventory |
-| /suppliers | Supplier management - Maintain supplier relationships |
-| /reports | Reports - Generate sales, inventory, and financial reports |
-| /settings | Settings - System configuration and user management |
-| /settings/users | User management - Add and manage system users |
-| /settings/configuration | Configuration - Set business rules and preferences |
+| Route                   | Purpose                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| /                       | Dashboard - Main overview with key metrics and quick actions |
+| /login                  | Login page - User authentication with email/password         |
+| /inventory              | Inventory management - Product catalog and stock control     |
+| /inventory/products     | Product list - Browse and manage all products                |
+| /inventory/stock        | Stock control - Update quantities and locations              |
+| /inventory/movements    | Stock movements - Track all inventory transactions           |
+| /sales                  | Sales management - Order processing and customer management  |
+| /sales/orders           | Order list - View and manage all customer orders             |
+| /sales/orders/new       | New order - Create customer order with product selection     |
+| /sales/customers        | Customer list - Manage customer profiles and history         |
+| /purchasing             | Purchase management - Supplier orders and receiving          |
+| /purchasing/orders      | Purchase orders - Create and track supplier orders           |
+| /purchasing/quotations  | Quotations - Request and compare supplier quotes             |
+| /purchasing/receiving   | Receiving - Record received goods and update inventory       |
+| /suppliers              | Supplier management - Maintain supplier relationships        |
+| /reports                | Reports - Generate sales, inventory, and financial reports   |
+| /settings               | Settings - System configuration and user management          |
+| /settings/users         | User management - Add and manage system users                |
+| /settings/configuration | Configuration - Set business rules and preferences           |
 
 ## 4. API definitions
 
@@ -62,17 +68,19 @@ POST /auth/v1/token
 ```
 
 Request:
-| Param Name | Param Type | isRequired | Description |
-|------------|-------------|-------------|-------------|
-| email | string | true | User email address |
-| password | string | true | User password |
+
+| Param Name | Param Type | isRequired | Description        |
+| ---------- | ---------- | ---------- | ------------------ |
+| email      | string     | true       | User email address |
+| password   | string     | true       | User password      |
 
 Response:
-| Param Name | Param Type | Description |
-|------------|-------------|-------------|
-| access_token | string | JWT token for API access |
-| refresh_token | string | Token for refreshing access |
-| user | object | User profile information |
+
+| Param Name     | Param Type | Description                 |
+| -------------- | ---------- | --------------------------- |
+| access\_token  | string     | JWT token for API access    |
+| refresh\_token | string     | Token for refreshing access |
+| user           | object     | User profile information    |
 
 ### 4.2 Product Management APIs
 
@@ -81,25 +89,27 @@ GET /rest/v1/products
 ```
 
 Request Query Parameters:
-| Param Name | Param Type | isRequired | Description |
-|------------|-------------|-------------|-------------|
-| select | string | false | Columns to select |
-| category | string | false | Filter by category |
-| search | string | false | Search in name/description |
-| limit | number | false | Number of results |
-| offset | number | false | Pagination offset |
+
+| Param Name | Param Type | isRequired | Description                |
+| ---------- | ---------- | ---------- | -------------------------- |
+| select     | string     | false      | Columns to select          |
+| category   | string     | false      | Filter by category         |
+| search     | string     | false      | Search in name/description |
+| limit      | number     | false      | Number of results          |
+| offset     | number     | false      | Pagination offset          |
 
 Response:
-| Param Name | Param Type | Description |
-|------------|-------------|-------------|
-| id | UUID | Product unique identifier |
-| sku | string | Stock keeping unit |
-| name | string | Product name |
-| description | string | Product description |
-| category | string | Product category |
-| price | number | Unit price |
-| stock_quantity | number | Available stock |
-| min_stock_level | number | Reorder point |
+
+| Param Name        | Param Type | Description               |
+| ----------------- | ---------- | ------------------------- |
+| id                | UUID       | Product unique identifier |
+| sku               | string     | Stock keeping unit        |
+| name              | string     | Product name              |
+| description       | string     | Product description       |
+| category          | string     | Product category          |
+| price             | number     | Unit price                |
+| stock\_quantity   | number     | Available stock           |
+| min\_stock\_level | number     | Reorder point             |
 
 ### 4.3 Order Management APIs
 
@@ -108,14 +118,16 @@ POST /rest/v1/orders
 ```
 
 Request:
-| Param Name | Param Type | isRequired | Description |
-|------------|-------------|-------------|-------------|
-| customer_id | UUID | true | Customer identifier |
-| order_items | array | true | Array of order items |
-| total_amount | number | true | Order total |
-| payment_method | string | true | Payment method |
+
+| Param Name      | Param Type | isRequired | Description          |
+| --------------- | ---------- | ---------- | -------------------- |
+| customer\_id    | UUID       | true       | Customer identifier  |
+| order\_items    | array      | true       | Array of order items |
+| total\_amount   | number     | true       | Order total          |
+| payment\_method | string     | true       | Payment method       |
 
 Order Item Object:
+
 ```json
 {
   "product_id": "uuid",
@@ -262,6 +274,7 @@ erDiagram
 ### 6.2 Data Definition Language
 
 Users Table
+
 ```sql
 -- create table
 CREATE TABLE users (
@@ -285,6 +298,7 @@ GRANT ALL PRIVILEGES ON users TO authenticated;
 ```
 
 Products Table
+
 ```sql
 -- create table
 CREATE TABLE products (
@@ -313,6 +327,7 @@ GRANT ALL PRIVILEGES ON products TO authenticated;
 ```
 
 Orders Table
+
 ```sql
 -- create table
 CREATE TABLE orders (
@@ -342,6 +357,7 @@ GRANT ALL PRIVILEGES ON orders TO authenticated;
 ```
 
 Inventory Movements Table
+
 ```sql
 -- create table
 CREATE TABLE inventory_movements (
@@ -370,6 +386,7 @@ GRANT ALL PRIVILEGES ON inventory_movements TO authenticated;
 ```
 
 Row Level Security (RLS) Policies
+
 ```sql
 -- Enable RLS on all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
@@ -406,3 +423,4 @@ CREATE POLICY "Users can manage inventory" ON inventory_movements
         )
     );
 ```
+

@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Payment } from '../../types';
-import { Check, X, Search, FileText, ExternalLink, Filter, RefreshCw } from 'lucide-react';
+import { Check, X, Search, FileText, ExternalLink, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function PaymentVerification() {
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -13,10 +14,16 @@ export default function PaymentVerification() {
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  const { formatCurrency } = useSettingsStore();
+
+  // Rejection state
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Filters
   const [typeFilter, setTypeFilter] = useState<'all' | 'sale' | 'purchase'>('all');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'equipment' | 'raw_material'>('all');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'verified' | 'rejected'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'unverified' | 'verified' | 'rejected'>('unverified');
   const [dateFilter, setDateFilter] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
@@ -47,53 +54,75 @@ export default function PaymentVerification() {
     }
   };
 
-  const handleVerify = async (paymentId: string, status: 'verified' | 'rejected') => {
+  const handleVerify = async (paymentId: string, status: 'verified' | 'rejected', notes?: string) => {
     try {
-      const { error } = await supabase
+      const user = (await supabase.auth.getUser()).data.user;
+      
+      // 1. Update Payment Status
+      const { error: paymentError } = await supabase
         .from('payments')
         .update({ 
           status,
-          verified_by: (await supabase.auth.getUser()).data.user?.id 
+          verified_by: user?.id,
+          notes: notes || selectedPayment?.notes // Append or replace notes? Let's replace or keep existing if no new note.
         })
         .eq('id', paymentId);
 
-      if (error) throw error;
+      if (paymentError) throw paymentError;
 
-      // Logic to update parent order/PO status if fully paid? 
-      // For now, let's just mark the payment status.
-      // Ideally we check if total verified payments >= order total.
+      const payment = payments.find(p => p.id === paymentId);
       
-      // We can do a simple check here if status is verified
-      if (status === 'verified') {
-        const payment = payments.find(p => p.id === paymentId);
-        if (payment) {
-           const amount = payment.amount;
-           const refType = payment.order_id ? 'order' : 'purchase_order';
-           const refId = payment.order_id || payment.purchase_order_id;
-           const category = payment.order?.type || payment.purchase_order?.type || 'General';
+      if (payment) {
+          const isOrder = !!payment.order_id;
+          
+          if (isOrder && payment.order_id) {
+             if (status === 'verified') {
+                 // 2. Update Order Status (Paid & Completed)
+                 const { error: orderError } = await supabase
+                    .from('orders')
+                    .update({ 
+                        payment_status: 'paid',
+                        status: 'completed' // As per requirement: "Automatically change SO status to 'completed'"
+                    })
+                    .eq('id', payment.order_id);
+                 
+                 if (orderError) throw orderError;
 
-           // Add to cashflow
-           await supabase.from('transactions').insert({
-               date: new Date().toISOString(),
-               description: `${refType === 'order' ? 'Sales' : 'Purchase'} Payment - Ref #${refId?.slice(0, 8)}`,
-               amount: amount,
-               type: refType === 'order' ? 'income' : 'expense',
-               category: category === 'equipment' ? 'Equipment' : 'Raw Material',
-               reference_id: refId,
-               reference_type: refType
-           });
+                 // 3. Add to Cashflow (Transactions)
+                 await supabase.from('transactions').insert({
+                    date: new Date().toISOString(),
+                    description: `Sales Payment - Order #${payment.order_id.slice(0, 8)}`,
+                    amount: payment.amount,
+                    type: 'income',
+                    category: payment.order?.type === 'equipment' ? 'Equipment Sales' : 'Raw Material Sales',
+                    reference_id: payment.order_id,
+                    reference_type: 'order'
+                });
 
-           // Optional: Update parent status if fully paid. 
-           // For simplicity, we just mark parent as 'paid' or 'partial' could be complex without fetching all payments.
-           // We'll skip complex parent status update for now to avoid bugs, focusing on payment verification itself.
-        }
+             } else if (status === 'rejected') {
+                 // 2. Update Order Status (Rejected)
+                 const { error: orderError } = await supabase
+                    .from('orders')
+                    .update({ 
+                        payment_status: 'rejected'
+                    })
+                    .eq('id', payment.order_id);
+                 
+                 if (orderError) throw orderError;
+             }
+          }
+          // Handle Purchase Order logic similarly if needed (skipping for now as focus is Sales)
       }
 
       setPayments(payments.map(p => 
-        p.id === paymentId ? { ...p, status } : p
+        p.id === paymentId ? { ...p, status, notes: notes || p.notes } : p
       ));
+      
       toast.success(`Payment ${status} successfully`);
       setIsModalOpen(false);
+      setIsRejecting(false);
+      setRejectionReason('');
+      
     } catch (error) {
       console.error('Error updating payment:', error);
       toast.error('Failed to update payment status');
@@ -143,6 +172,7 @@ export default function PaymentVerification() {
     switch (status) {
       case 'verified': return 'bg-green-100 text-green-800';
       case 'rejected': return 'bg-red-100 text-red-800';
+      case 'unverified': return 'bg-orange-100 text-orange-800';
       default: return 'bg-yellow-100 text-yellow-800';
     }
   };
@@ -223,7 +253,7 @@ export default function PaymentVerification() {
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
            >
              <option value="all">All Statuses</option>
-             <option value="pending">Pending</option>
+             <option value="unverified">Unverified</option>
              <option value="verified">Verified</option>
              <option value="rejected">Rejected</option>
            </select>
@@ -312,7 +342,7 @@ export default function PaymentVerification() {
                               <div className="text-xs text-gray-400 capitalize">{info.category?.replace('_', ' ')}</div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                              ${payment.amount.toFixed(2)}
+                              {formatCurrency(payment.amount)}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {payment.payment_method}
@@ -347,7 +377,7 @@ export default function PaymentVerification() {
 
       <Modal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setIsRejecting(false); }}
         title="Payment Verification Details"
       >
         {selectedPayment && (
@@ -373,14 +403,14 @@ export default function PaymentVerification() {
                         </div>
                          <div>
                           <p className="text-xs text-gray-500">Total Transaction Value</p>
-                          <p className="text-sm font-medium">${(info.total || 0).toFixed(2)}</p>
+                          <p className="text-sm font-medium">{formatCurrency(info.total || 0)}</p>
                         </div>
                       </div>
                     </div>
 
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Payment Amount</h4>
-                      <p className="mt-1 text-lg font-bold text-gray-900">${selectedPayment.amount.toFixed(2)}</p>
+                      <p className="mt-1 text-lg font-bold text-gray-900">{formatCurrency(selectedPayment.amount)}</p>
                     </div>
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Date</h4>
@@ -394,13 +424,13 @@ export default function PaymentVerification() {
                       <h4 className="text-sm font-medium text-gray-500">Status</h4>
                       <p className={`mt-1 text-sm font-medium ${
                         selectedPayment.status === 'verified' ? 'text-green-600' : 
-                        selectedPayment.status === 'rejected' ? 'text-red-600' : 'text-yellow-600'
+                        selectedPayment.status === 'rejected' ? 'text-red-600' : 'text-orange-600'
                       }`}>
                         {selectedPayment.status.toUpperCase()}
                       </p>
                     </div>
                     
-                    {selectedPayment.notes && (
+                    {selectedPayment.notes && !isRejecting && (
                       <div className="col-span-2">
                          <h4 className="text-sm font-medium text-gray-500">Notes</h4>
                          <p className="mt-1 text-sm text-gray-700 bg-gray-50 p-2 rounded">{selectedPayment.notes}</p>
@@ -416,7 +446,7 @@ export default function PaymentVerification() {
                 <div className="border rounded-lg p-3 bg-gray-50 flex items-center justify-between">
                    <div className="flex items-center text-gray-700 truncate mr-2">
                       <FileText className="h-5 w-5 mr-2 text-gray-400" />
-                      <span className="text-sm truncate">{selectedPayment.proof_url}</span>
+                      <span className="text-sm truncate">{selectedPayment.proof_url.split('/').pop()}</span>
                    </div>
                    <a 
                      href={selectedPayment.proof_url} 
@@ -431,32 +461,67 @@ export default function PaymentVerification() {
             ) : (
                <div className="text-sm text-gray-500 italic">No proof document provided.</div>
             )}
+            
+            {isRejecting && (
+                <div className="bg-red-50 p-4 rounded-md border border-red-200">
+                    <h4 className="text-sm font-medium text-red-800 mb-2 flex items-center">
+                        <AlertTriangle className="h-4 w-4 mr-2" />
+                        Rejection Reason
+                    </h4>
+                    <textarea 
+                        className="w-full border-red-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                        rows={3}
+                        placeholder="Please explain why this payment is rejected..."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                    />
+                    <div className="mt-3 flex justify-end space-x-2">
+                        <button 
+                            className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50"
+                            onClick={() => setIsRejecting(false)}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            className="px-3 py-1.5 bg-red-600 border border-transparent rounded text-sm text-white hover:bg-red-700"
+                            onClick={() => handleVerify(selectedPayment.id, 'rejected', rejectionReason)}
+                            disabled={!rejectionReason.trim()}
+                        >
+                            Confirm Rejection
+                        </button>
+                    </div>
+                </div>
+            )}
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
-              <button
-                type="button"
-                className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
-                onClick={() => setIsModalOpen(false)}
-              >
-                Close
-              </button>
-              {selectedPayment.status === 'pending' && (
-                <>
-                  <button
-                    type="button"
-                    className="bg-red-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:text-sm"
-                    onClick={() => handleVerify(selectedPayment.id, 'rejected')}
-                  >
-                    Reject
-                  </button>
-                  <button
-                    type="button"
-                    className="bg-green-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:text-sm"
-                    onClick={() => handleVerify(selectedPayment.id, 'verified')}
-                  >
-                    Verify Payment
-                  </button>
-                </>
+              {!isRejecting && (
+                  <>
+                    <button
+                        type="button"
+                        className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
+                        onClick={() => setIsModalOpen(false)}
+                    >
+                        Close
+                    </button>
+                    {selectedPayment.status === 'unverified' && (
+                        <>
+                        <button
+                            type="button"
+                            className="bg-red-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:text-sm"
+                            onClick={() => setIsRejecting(true)}
+                        >
+                            Reject
+                        </button>
+                        <button
+                            type="button"
+                            className="bg-green-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:text-sm"
+                            onClick={() => handleVerify(selectedPayment.id, 'verified')}
+                        >
+                            Verify Payment
+                        </button>
+                        </>
+                    )}
+                  </>
               )}
             </div>
           </div>

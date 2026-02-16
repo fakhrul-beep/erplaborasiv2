@@ -12,3 +12,50 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Mobile Optimizations */
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    font-size: 16px; /* Base font size for readability */
+  }
+
+  /* Ensure minimum tap target size of 44px */
+  button, 
+  a, 
+  input[type="checkbox"], 
+  input[type="radio"],
+  select,
+  [role="button"] {
+    @apply min-h-[44px] min-w-[44px];
+  }
+
+  /* Optimize inputs for mobile */
+  input, 
+  select, 
+  textarea {
+    @apply text-base; /* Prevents iOS zoom on focus */
+  }
+}
+
+@layer components {
+  /* Smooth scrolling for the main content area */
+  .smooth-scroll {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* Card styling for mobile views */
+  .mobile-card {
+    @apply bg-white p-4 rounded-lg shadow mb-4 border border-gray-100;
+  }
+
+  /* Shimmer animation for loading states */
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .animate-shimmer {
+    animation: shimmer 1.5s infinite linear;
+  }
+}

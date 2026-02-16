@@ -8,6 +8,6 @@ BEGIN
   -- Update public.users
   UPDATE public.users 
   SET role = 'superadmin', is_approved = true 
-  WHERE email = 'fakhrul@dapurlaborasi.com';
+  WHERE email = 'fakhrul@ternakmart.com';
   
 END $$;

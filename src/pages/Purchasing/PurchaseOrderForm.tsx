@@ -5,6 +5,8 @@ import { Product, Supplier } from '../../types';
 import { Save, ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { InteractiveSearchDropdown } from '../../components/InteractiveSearchDropdown';
 
 interface POItemInput {
   id?: string;
@@ -34,6 +36,7 @@ export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { formatCurrency } = useSettingsStore();
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -132,7 +135,7 @@ export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
       if (product) {
         // Here we might want to use a cost price, but for now we default to current selling price or 0
         // Ideally products table should have cost_price
-        item.unit_price = product.unit_price * 0.8; // Assume 20% margin for default fill
+        item.unit_price = product.price * 0.8; // Assume 20% margin for default fill
         item.product = product;
       }
     }
@@ -229,17 +232,13 @@ export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">Supplier</label>
-              <select
-                required
+              <InteractiveSearchDropdown
+                type="suppliers"
                 value={formData.supplier_id}
-                onChange={e => setFormData({ ...formData, supplier_id: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
-              >
-                <option value="">Select a supplier</option>
-                {suppliers.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
+                onChange={id => setFormData({ ...formData, supplier_id: id })}
+                placeholder="Pilih supplier"
+                className="mt-1"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Date</label>
@@ -337,26 +336,26 @@ export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
                 <div className="w-32">
                   <label className="block text-xs font-medium text-gray-700">Unit Cost</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">$</span>
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">Rp</span>
                     <input
                       type="number"
-                      step="0.01"
+                      step="1"
                       required
                       value={item.unit_price}
                       onChange={e => handleItemChange(index, 'unit_price', parseFloat(e.target.value))}
-                      className="block w-full pl-7 border border-gray-300 rounded-md py-2 sm:text-sm"
+                      className="block w-full pl-10 border border-gray-300 rounded-md py-2 sm:text-sm"
                     />
                   </div>
                 </div>
                 <div className="w-32">
                   <label className="block text-xs font-medium text-gray-700">Total</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">$</span>
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">Rp</span>
                     <input
                       type="text"
                       readOnly
-                      value={(item.quantity * item.unit_price).toFixed(2)}
-                      className="block w-full pl-7 border border-gray-300 rounded-md bg-gray-100 py-2 sm:text-sm font-medium"
+                      value={formatCurrency(item.quantity * item.unit_price).replace('Rp', '').trim()}
+                      className="block w-full pl-10 border border-gray-300 rounded-md bg-gray-100 py-2 sm:text-sm font-medium"
                     />
                   </div>
                 </div>
@@ -377,7 +376,7 @@ export default function PurchaseOrderForm({ type }: PurchaseOrderFormProps) {
             <div className="flex justify-end pt-4 border-t border-gray-200">
                <div className="text-right">
                  <span className="text-sm font-medium text-gray-500">Grand Total:</span>
-                 <span className="ml-2 text-2xl font-bold text-gray-900">${totalAmount.toFixed(2)}</span>
+                 <span className="ml-2 text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
                </div>
             </div>
           </div>

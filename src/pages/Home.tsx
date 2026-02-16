@@ -13,7 +13,7 @@ export default function Home() {
             <LayoutDashboard className="h-10 w-10 text-white" />
           </div>
         </div>
-        <h2 className="text-3xl font-extrabold text-gray-900">Welcome to ERP Laborasi</h2>
+        <h2 className="text-3xl font-extrabold text-gray-900">Welcome to Ternakmart</h2>
         <p className="mt-2 text-gray-600">Integrated Management System</p>
         
         <div className="mt-8 flex justify-center gap-4">

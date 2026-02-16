@@ -2,7 +2,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'superadmin' | 'finance' | 'sales' | 'sales_equipment' | 'sales_raw_material' | 'purchasing';
+  role: 'superadmin' | 'finance' | 'sales' | 'sales_equipment' | 'sales_raw_material' | 'purchasing' | 'warehouse' | 'delivery';
   is_approved: boolean;
   is_active: boolean;
   created_at: string;
@@ -13,7 +13,7 @@ export interface Product {
   name: string;
   sku: string;
   description: string;
-  unit_price: number;
+  price: number;
   stock_quantity: number;
   category: string;
   image_url?: string;
@@ -50,9 +50,9 @@ export interface Order {
   id: string;
   customer_id: string;
   order_date: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'newly_created' | 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'completed';
   total_amount: number;
-  payment_status: 'pending' | 'paid' | 'partial' | 'refunded';
+  payment_status: 'unpaid' | 'unverified' | 'paid' | 'rejected';
   payment_proof_url?: string;
   type: 'equipment' | 'raw_material';
   customer?: Customer;
@@ -103,7 +103,7 @@ export interface Payment {
   payment_date: string;
   payment_method: string;
   proof_url: string;
-  status: 'pending' | 'verified' | 'rejected';
+  status: 'unverified' | 'verified' | 'rejected';
   verified_by: string;
   notes: string;
   created_at: string;
@@ -121,4 +121,40 @@ export interface Transaction {
   reference_id?: string;
   reference_type?: string;
   created_at: string;
+}
+
+export interface StockOpnameSession {
+  id: string;
+  type: 'equipment' | 'raw_material';
+  status: 'draft' | 'in_progress' | 'review' | 'finalized' | 'cancelled';
+  scheduled_date: string;
+  notes?: string;
+  warehouse_id?: string;
+  created_by: string;
+  created_at: string;
+  items?: StockOpnameItem[];
+  approvals?: StockOpnameApproval[];
+}
+
+export interface StockOpnameItem {
+  id: string;
+  session_id: string;
+  product_id: string;
+  system_stock: number;
+  physical_stock?: number;
+  difference?: number;
+  notes?: string;
+  condition?: string;
+  product?: Product;
+}
+
+export interface StockOpnameApproval {
+  id: string;
+  session_id: string;
+  approver_id: string;
+  role: string;
+  status: 'pending' | 'approved' | 'rejected';
+  comments?: string;
+  created_at: string;
+  approver?: User;
 }

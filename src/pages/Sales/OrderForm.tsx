@@ -6,6 +6,8 @@ import { Save, ArrowLeft, Plus, Trash2, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import PaymentSubmission from '../../components/PaymentSubmission';
 import { useAuthStore } from '../../store/authStore';
+import { useSettingsStore } from '../../store/settingsStore';
+import { InteractiveSearchDropdown } from '../../components/InteractiveSearchDropdown';
 
 interface OrderItemInput {
   id?: string; // for existing items
@@ -37,14 +39,15 @@ export default function OrderForm({ type }: OrderFormProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const { profile, user } = useAuthStore();
+  const { formatCurrency } = useSettingsStore();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   
   const [formData, setFormData] = useState<OrderFormData>({
     customer_id: '',
-    status: 'pending',
-    payment_status: 'pending',
+    status: 'newly_created',
+    payment_status: 'unpaid',
     payment_proof_url: '',
     notes: '',
     type: type || 'equipment'
@@ -138,8 +141,8 @@ export default function OrderForm({ type }: OrderFormProps) {
     if (field === 'product_id') {
       const product = products.find(p => p.id === value);
       if (product) {
-        item.unit_price = product.unit_price; // Base selling price
-        item.original_unit_price = product.unit_price;
+        item.unit_price = product.price; // Base selling price
+        item.original_unit_price = product.price;
         item.cost_price = product.cost_price || 0;
         item.product = product;
         item.price_change_reason = '';
@@ -265,17 +268,13 @@ export default function OrderForm({ type }: OrderFormProps) {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-gray-700">Customer</label>
-              <select
-                required
+              <InteractiveSearchDropdown
+                type="customers"
                 value={formData.customer_id}
-                onChange={e => setFormData({ ...formData, customer_id: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
-              >
-                <option value="">Select a customer</option>
-                {customers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+                onChange={id => setFormData({ ...formData, customer_id: id })}
+                placeholder="Pilih customer"
+                className="mt-1"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700">Order Date</label>
@@ -356,7 +355,7 @@ export default function OrderForm({ type }: OrderFormProps) {
                   >
                     <option value="">Select Product</option>
                     {products.map(p => (
-                      <option key={p.id} value={p.id}>{p.name} (${p.unit_price})</option>
+                      <option key={p.id} value={p.id}>{p.name} ({formatCurrency(p.price)})</option>
                     ))}
                   </select>
                 </div>
@@ -374,7 +373,7 @@ export default function OrderForm({ type }: OrderFormProps) {
                 <div className="w-32">
                   <label className="block text-xs font-medium text-gray-700">Price</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">$</span>
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">Rp</span>
                     <input
                       type="number"
                       readOnly={!canModifyPrice}
@@ -418,12 +417,12 @@ export default function OrderForm({ type }: OrderFormProps) {
                 <div className="w-32">
                   <label className="block text-xs font-medium text-gray-700">Total</label>
                   <div className="mt-1 relative rounded-md shadow-sm">
-                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">$</span>
+                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 sm:text-sm">Rp</span>
                     <input
                       type="text"
                       readOnly
-                      value={(item.quantity * item.unit_price).toFixed(2)}
-                      className="block w-full pl-7 border border-gray-300 rounded-md bg-gray-100 py-2 sm:text-sm font-medium"
+                      value={formatCurrency(item.quantity * item.unit_price).replace('Rp', '').trim()} // Simplified for input, but better to just use formatCurrency in a span or plain text, but here it's an input
+                      className="block w-full pl-10 border border-gray-300 rounded-md bg-gray-100 py-2 sm:text-sm font-medium"
                     />
                   </div>
                 </div>
@@ -444,7 +443,7 @@ export default function OrderForm({ type }: OrderFormProps) {
             <div className="flex justify-end pt-4 border-t border-gray-200">
                <div className="text-right">
                  <span className="text-sm font-medium text-gray-500">Grand Total:</span>
-                 <span className="ml-2 text-2xl font-bold text-gray-900">${totalAmount.toFixed(2)}</span>
+                 <span className="ml-2 text-2xl font-bold text-gray-900">{formatCurrency(totalAmount)}</span>
                </div>
             </div>
           </div>

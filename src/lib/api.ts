@@ -5,7 +5,7 @@ export const getDashboardStats = async () => {
     // Parallel fetching for performance
     const [ordersResponse, productsResponse, customersResponse] = await Promise.all([
       supabase.from('orders').select('total_amount, status'),
-      supabase.from('products').select('stock_quantity, unit_price'),
+      supabase.from('products').select('stock_quantity, price'),
       supabase.from('customers').select('id', { count: 'exact', head: true })
     ]);
 
@@ -21,7 +21,7 @@ export const getDashboardStats = async () => {
     ).length;
     
     const totalInventoryValue = products.reduce((acc, curr) => 
-      acc + ((Number(curr.stock_quantity) || 0) * (Number(curr.unit_price) || 0)), 0
+      acc + ((Number(curr.stock_quantity) || 0) * (Number(curr.price) || 0)), 0
     );
 
     return {
@@ -59,5 +59,24 @@ export const getRecentOrders = async () => {
   } catch (error) {
     console.error('Error in getRecentOrders:', error);
     return [];
+  }
+};
+
+export const logImportActivity = async (module: string, total: number, success: number, failed: number, userId?: string) => {
+  try {
+    const { error } = await supabase
+      .from('import_logs')
+      .insert({
+        module,
+        total_rows: total,
+        success_rows: success,
+        failed_rows: failed,
+        created_by: userId,
+        created_at: new Date().toISOString()
+      });
+    
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error logging import activity:', error);
   }
 };

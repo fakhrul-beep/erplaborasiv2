@@ -8,7 +8,7 @@ export default function Logo({ className = "h-12" }: LogoProps) {
   return (
     <img 
       src="/logo.png" 
-      alt="ERP Laborasi" 
+      alt="Ternakmart" 
       className={`object-contain ${className}`}
     />
   );

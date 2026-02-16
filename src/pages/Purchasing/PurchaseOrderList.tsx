@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { PurchaseOrder } from '../../types';
-import { Plus, Search, Eye, Calendar, X, Edit, Save, RefreshCw } from 'lucide-react';
+import { Plus, Search, Eye, Calendar, X, Edit, Save, RefreshCw, Download } from 'lucide-react';
+import { generatePurchaseOrderPDF } from '../../utils/pdfGenerator';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
+import { MobileCard } from '../../components/MobileCard';
+import { useSettingsStore } from '../../store/settingsStore';
+import OrderFilterPanel, { FilterState } from '../../components/Inventory/OrderFilterPanel';
 
 interface PurchaseOrderListProps {
   type?: 'equipment' | 'raw_material';
@@ -14,18 +18,21 @@ interface PurchaseOrderListProps {
 export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type for safety
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [filteredCount, setFilteredCount] = useState(0);
+  const [filters, setFilters] = useState<FilterState | null>(null);
   
   const [selectedSupplier, setSelectedSupplier] = useState<any>(null);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
   const [isEditingSupplier, setIsEditingSupplier] = useState(false);
   const [editedSupplier, setEditedSupplier] = useState<any>(null);
 
+  const { formatCurrency } = useSettingsStore();
+
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
-  }, [type]);
+  }, [type, filters]);
 
   const fetchOrders = async () => {
     try {
@@ -33,11 +40,58 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
       // Fetch with standard relationship format
       let query = supabase
         .from('purchase_orders')
-        .select('*, suppliers(*)')
-        .order('created_at', { ascending: false });
+        .select('*, suppliers(*)');
 
       if (type) {
         query = query.eq('type', type);
+      }
+
+      // Apply Filters
+      if (filters) {
+        if (filters.search) {
+          query = query.or(`id.ilike.%${filters.search}%,suppliers.name.ilike.%${filters.search}%`);
+        }
+        if (filters.status) {
+          query = query.eq('status', filters.status);
+        }
+        if (filters.startDate) {
+          query = query.gte('created_at', filters.startDate);
+        }
+        if (filters.endDate) {
+          query = query.lte('created_at', filters.endDate);
+        }
+        if (filters.minAmount) {
+          query = query.gte('total_amount', parseFloat(filters.minAmount));
+        }
+        if (filters.maxAmount) {
+          query = query.lte('total_amount', parseFloat(filters.maxAmount));
+        }
+
+        // Apply Sorting
+        if (filters.sortBy) {
+          const ascending = filters.sortOrder === 'asc';
+          
+          switch (filters.sortBy) {
+            case 'customer':
+              query = query.order('name', { foreignTable: 'suppliers', ascending });
+              break;
+            case 'amount':
+              query = query.order('total_amount', { ascending });
+              break;
+            case 'date':
+              query = query.order('created_at', { ascending });
+              break;
+            case 'id':
+              query = query.order('id', { ascending });
+              break;
+            default:
+              query = query.order('created_at', { ascending: false });
+          }
+        } else {
+          query = query.order('created_at', { ascending: false });
+        }
+      } else {
+        query = query.order('created_at', { ascending: false });
       }
 
       const { data, error } = await query;
@@ -51,13 +105,28 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
       }));
 
       setOrders(mappedOrders);
+      setFilteredCount(mappedOrders.length);
     } catch (error: any) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders: ' + error.message);
+      console.error('Error fetching purchase orders:', error);
+      let errorMessage = 'Failed to load purchase orders';
+      
+      if (error.message?.includes('failed to parse order')) {
+        errorMessage = 'Filter sorting error: Invalid sort column structure.';
+      } else if (error.code === 'PGRST116') {
+        errorMessage = 'Order not found.';
+      } else if (error.message) {
+        errorMessage += ': ' + error.message;
+      }
+      
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleFilterChange = useCallback((newFilters: FilterState) => {
+    setFilters(newFilters);
+  }, []);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
@@ -143,28 +212,53 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
     }
   };
 
-  const filteredOrders = orders.filter(order => {
-    const term = searchTerm.toLowerCase();
-    const supplierName = order.supplier?.name?.toLowerCase() || '';
-    const orderId = (order.id || '').toLowerCase();
-    return supplierName.includes(term) || orderId.includes(term);
-  });
+  const handleDownloadPO = async (e: React.MouseEvent, order: any) => {
+    e.stopPropagation();
+    try {
+        // Fetch items if not present
+        if (!order.items) {
+             const { data: items } = await supabase
+                .from('purchase_order_items')
+                .select('*, products(*)')
+                .eq('purchase_order_id', order.id);
+             order.items = items?.map((i:any) => ({...i, product: i.products}));
+        }
+
+        await generatePurchaseOrderPDF(order);
+        
+        // Audit Log
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+            await supabase.from('audit_logs').insert({
+                user_id: user.id,
+                action: 'download_po',
+                entity: 'purchase_order',
+                entity_id: order.id,
+                details: { po_number: order.id }
+            });
+        }
+        toast.success('PO downloaded successfully');
+    } catch (error) {
+        console.error('Error generating PDF:', error);
+        toast.error('Failed to generate PO');
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 className="text-2xl font-semibold text-gray-900">Purchase Orders</h1>
-        <div className="flex space-x-2">
+        <div className="flex space-x-2 w-full sm:w-auto">
             <button
             onClick={fetchOrders}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
             >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
             </button>
             <button
             onClick={() => navigate('/purchasing/new')}
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+            className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent min-h-[44px]"
             >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             New Purchase Order
@@ -172,21 +266,15 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
         </div>
       </div>
 
-      <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
-        <div className="mb-6 relative rounded-md shadow-sm">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-          <input
-            type="text"
-            className="focus:ring-accent focus:border-accent block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2"
-            placeholder="Search orders by ID or supplier name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <OrderFilterPanel 
+        onFilterChange={handleFilterChange}
+        totalCount={filteredCount}
+        type="purchasing"
+      />
 
-        <div className="flex flex-col">
+      <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
+        {/* Desktop View (Table) */}
+        <div className="hidden md:block flex flex-col">
           <div className="-my-2 overflow-x-auto sm:-mx-6 lg:-mx-8">
             <div className="py-2 align-middle inline-block min-w-full sm:px-6 lg:px-8">
               <div className="shadow overflow-hidden border-b border-gray-200 sm:rounded-lg">
@@ -203,9 +291,9 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {loading ? (
                       <tr><td colSpan={5} className="px-6 py-4 text-center">Loading...</td></tr>
-                    ) : filteredOrders.length === 0 ? (
+                    ) : orders.length === 0 ? (
                         <tr><td colSpan={5} className="px-6 py-4 text-center text-gray-500">No orders found.</td></tr>
-                    ) : filteredOrders.map((order) => (
+                    ) : orders.map((order) => (
                       <tr key={order.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">#{order.id.slice(0, 8)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -214,7 +302,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                           </button>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy') : '-'}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${(order.total_amount || 0).toFixed(2)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(order.total_amount || 0)}</td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <select
                             value={order.status}
@@ -227,6 +315,15 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                             <option value="cancelled">Cancelled</option>
                           </select>
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                             onClick={(e) => handleDownloadPO(e, order)}
+                             className="text-gray-500 hover:text-gray-700"
+                             title="Download PO"
+                          >
+                             <Download className="h-4 w-4" />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -234,6 +331,51 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Mobile View (Cards) */}
+        <div className="md:hidden">
+          {orders.length === 0 ? (
+            <div className="text-center text-gray-500 py-8">No orders found.</div>
+          ) : (
+            orders.map((order) => (
+              <div key={order.id} className="relative">
+                <MobileCard
+                  id={order.id}
+                  title={`PO #${order.id.slice(0, 8)}`}
+                  subtitle={order.supplier?.name || 'Unknown Supplier'}
+                  status={{
+                    label: order.status,
+                    color: order.status === 'received' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                  }}
+                  details={[
+                    { label: 'Date', value: order.created_at ? format(new Date(order.created_at), 'MMM d, yyyy') : '-' },
+                    { label: 'Total', value: formatCurrency(order.total_amount || 0) }
+                  ]}
+                  actions={[
+                    {
+                      icon: Download,
+                      label: 'Download PO',
+                      onClick: (id) => handleDownloadPO({ stopPropagation: () => {} } as any, order),
+                      variant: 'default'
+                    }
+                  ]}
+                />
+                {/* Mobile Status Changer */}
+                <div className="absolute top-[60px] right-4 z-10">
+                   {/* Simplified status for mobile, or could be part of details. 
+                       For now, let's just keep the select inside the card flow or separate.
+                       Actually, putting it absolutely positioned might overlap. 
+                       Let's add it below the card content or inside details?
+                       The MobileCard doesn't support custom children yet.
+                       I will stick to read-only status on mobile card for now to avoid clutter, 
+                       as requested "reducing visual clutter". 
+                       If editing is needed, maybe a details view is better. 
+                   */}
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -252,13 +394,13 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                 </div>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div><h4 className="text-sm font-medium text-gray-500">Name</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.name} onChange={(e) => setEditedSupplier({ ...editedSupplier, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.name}</p>}</div>
               <div><h4 className="text-sm font-medium text-gray-500">Email</h4>{isEditingSupplier ? <input type="email" value={editedSupplier.email} onChange={(e) => setEditedSupplier({ ...editedSupplier, email: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.email}</p>}</div>
               <div><h4 className="text-sm font-medium text-gray-500">Phone</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.phone} onChange={(e) => setEditedSupplier({ ...editedSupplier, phone: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.phone}</p>}</div>
-              <div className="col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingSupplier ? <textarea rows={3} value={editedSupplier.address} onChange={(e) => setEditedSupplier({ ...editedSupplier, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.address}</p>}</div>
+              <div className="sm:col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingSupplier ? <textarea rows={3} value={editedSupplier.address} onChange={(e) => setEditedSupplier({ ...editedSupplier, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.address}</p>}</div>
             </div>
-            <div className="flex justify-end pt-4 border-t"><button type="button" className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm" onClick={() => setIsSupplierModalOpen(false)}>Close</button></div>
+            <div className="flex justify-end pt-4 border-t"><button type="button" className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm min-h-[44px]" onClick={() => setIsSupplierModalOpen(false)}>Close</button></div>
           </div>
         ) : <div className="text-center py-4">Loading...</div>}
       </Modal>

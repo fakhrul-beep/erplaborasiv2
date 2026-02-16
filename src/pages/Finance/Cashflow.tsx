@@ -5,6 +5,7 @@ import { Plus, Search, ArrowUpCircle, ArrowDownCircle, Filter } from 'lucide-rea
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
+import { useSettingsStore } from '../../store/settingsStore';
 
 export default function Cashflow() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -14,6 +15,8 @@ export default function Cashflow() {
   
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
+
+  const { formatCurrency } = useSettingsStore();
 
   const [formData, setFormData] = useState({
     description: '',
@@ -122,7 +125,7 @@ export default function Cashflow() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Income</dt>
-                  <dd className="text-lg font-medium text-gray-900">${totalIncome.toFixed(2)}</dd>
+                  <dd className="text-lg font-medium text-gray-900">{formatCurrency(totalIncome)}</dd>
                 </dl>
               </div>
             </div>
@@ -138,7 +141,7 @@ export default function Cashflow() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Expenses</dt>
-                  <dd className="text-lg font-medium text-gray-900">${totalExpense.toFixed(2)}</dd>
+                  <dd className="text-lg font-medium text-gray-900">{formatCurrency(totalExpense)}</dd>
                 </dl>
               </div>
             </div>
@@ -149,13 +152,13 @@ export default function Cashflow() {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Filter className="h-6 w-6 text-primary-400" />
+                <Filter className="h-6 w-6 text-blue-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
                 <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Net Balance</dt>
-                  <dd className={`text-lg font-medium ${(totalIncome - totalExpense) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    ${(totalIncome - totalExpense).toFixed(2)}
+                  <dt className="text-sm font-medium text-gray-500 truncate">Net Flow</dt>
+                  <dd className={`text-lg font-medium ${totalIncome - totalExpense >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {formatCurrency(totalIncome - totalExpense)}
                   </dd>
                 </dl>
               </div>
@@ -237,7 +240,7 @@ export default function Cashflow() {
                           <td className={`px-6 py-4 whitespace-nowrap text-sm font-medium text-right ${
                             transaction.type === 'income' ? 'text-green-600' : 'text-red-600'
                           }`}>
-                            {transaction.type === 'income' ? '+' : '-'}${Number(transaction.amount).toFixed(2)}
+                            {transaction.type === 'income' ? '+' : '-'}{formatCurrency(Number(transaction.amount)).replace('Rp', '').trim()}
                           </td>
                         </tr>
                       ))
@@ -272,14 +275,14 @@ export default function Cashflow() {
               <label className="block text-sm font-medium text-gray-700">Amount</label>
               <div className="mt-1 relative rounded-md shadow-sm">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-500 sm:text-sm">$</span>
+                  <span className="text-gray-500 sm:text-sm">Rp</span>
                 </div>
                 <input
                   type="number"
                   required
                   min="0"
-                  step="0.01"
-                  className="focus:ring-accent focus:border-accent block w-full pl-7 sm:text-sm border-gray-300 rounded-md py-2"
+                  step="1"
+                  className="focus:ring-accent focus:border-accent block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2"
                   value={formData.amount}
                   onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                 />

@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.transactions (
 CREATE OR REPLACE FUNCTION public.handle_new_user_approval()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.email = 'fakhrul@dapurlaborasi.com' THEN
+  IF NEW.email = 'fakhrul@ternakmart.com' THEN
     NEW.role := 'superadmin';
     NEW.is_approved := true;
   END IF;

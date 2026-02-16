@@ -1,7 +1,15 @@
 import React from 'react';
 import { BarChart3, PieChart, TrendingUp, Download } from 'lucide-react';
+import { useSettingsStore } from '../store/settingsStore';
 
 export default function Reports() {
+  const { formatCurrency } = useSettingsStore();
+  
+  // Dummy data for now, ideally this comes from API
+  const monthlySales = 24500000;
+  const inventoryValue = 45200000;
+  const totalExpenses = 12800000;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -23,7 +31,7 @@ export default function Reports() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Monthly Sales</dt>
-                  <dd className="text-lg font-medium text-gray-900">$24,500.00</dd>
+                  <dd className="text-lg font-medium text-gray-900">{formatCurrency(monthlySales)}</dd>
                   <dd className="text-sm text-green-600 flex items-center mt-1">
                     <TrendingUp className="h-3 w-3 mr-1" /> +12.5% from last month
                   </dd>
@@ -48,7 +56,7 @@ export default function Reports() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Inventory Value</dt>
-                  <dd className="text-lg font-medium text-gray-900">$45,200.00</dd>
+                  <dd className="text-lg font-medium text-gray-900">{formatCurrency(inventoryValue)}</dd>
                   <dd className="text-sm text-gray-500 mt-1">
                     1,234 items in stock
                   </dd>
@@ -73,7 +81,7 @@ export default function Reports() {
               <div className="ml-5 w-0 flex-1">
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Total Expenses</dt>
-                  <dd className="text-lg font-medium text-gray-900">$12,800.00</dd>
+                  <dd className="text-lg font-medium text-gray-900">{formatCurrency(totalExpenses)}</dd>
                   <dd className="text-sm text-red-600 flex items-center mt-1">
                     <TrendingUp className="h-3 w-3 mr-1" /> +5.2% from last month
                   </dd>

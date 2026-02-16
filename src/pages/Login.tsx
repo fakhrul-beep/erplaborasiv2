@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -19,14 +20,17 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
+    const cleanEmail = email.trim();
+    const cleanPassword = password.trim();
+
     try {
       if (isSignUp) {
         const { error } = await supabase.auth.signUp({
-          email,
-          password,
+          email: cleanEmail,
+          password: cleanPassword,
           options: {
             data: {
-              name: name,
+              name: name.trim(),
             },
           },
         });
@@ -36,9 +40,10 @@ export default function Login() {
         toast.success('Account created successfully! Please sign in.');
         setIsSignUp(false);
       } else {
+        console.log('Attempting login with:', { email: cleanEmail });
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: cleanEmail,
+          password: cleanPassword,
         });
 
         if (error) throw error;
@@ -63,6 +68,23 @@ export default function Login() {
         navigate('/');
       }
     } catch (error: any) {
+      console.error('Authentication Error:', {
+        isSignUp,
+        error,
+        message: error.message,
+        status: error.status
+      });
+
+      if (isSignUp) {
+        if (error.message?.includes('User already registered') || error.status === 400 || error.status === 422) {
+          toast.error('Email is already registered. Please contact the administrator to proceed or use the forgot password feature to recover your account.', {
+            duration: 5000,
+          });
+          return;
+        }
+      }
+
+      // Default error handling
       toast.error(error.message || 'Authentication failed');
     } finally {
       setLoading(false);
@@ -70,21 +92,18 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: '#f9fafb' }}>
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="flex justify-center">
+        <div className="flex justify-center" style={{ display: 'flex', justifyContent: 'center' }}>
           <Logo className="h-20 w-auto" />
         </div>
-        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+        <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900" style={{ marginTop: '1.5rem', textAlign: 'center', fontSize: '1.875rem', fontWeight: 800, color: '#111827' }}>
           {isSignUp ? 'Create an account' : 'Sign in to your account'}
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          ERP Laborasi
-        </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md" style={{ marginTop: '2rem' }}>
+        <div className="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10" style={{ backgroundColor: 'white', padding: '2rem', borderRadius: '0.5rem', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)' }}>
           <form className="space-y-6" onSubmit={handleAuth}>
             {isSignUp && (
               <div>
@@ -96,10 +115,10 @@ export default function Login() {
                     id="name"
                     name="name"
                     type="text"
-                    required={isSignUp}
+                    required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                   />
                 </div>
               </div>
@@ -118,7 +137,7 @@ export default function Login() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>
@@ -136,7 +155,7 @@ export default function Login() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
+                  className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm"
                 />
               </div>
             </div>
@@ -145,12 +164,15 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50"
+                style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0.5rem 1rem', borderRadius: '0.375rem', backgroundColor: '#1A7DB9', color: 'white', border: 'none', cursor: loading ? 'not-allowed' : 'pointer' }}
               >
                 {loading ? (
-                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <Loader2 className="animate-spin h-5 w-5" />
+                ) : isSignUp ? (
+                  'Sign up'
                 ) : (
-                  isSignUp ? 'Sign up' : 'Sign in'
+                  'Sign in'
                 )}
               </button>
             </div>
@@ -163,7 +185,7 @@ export default function Login() {
               </div>
               <div className="relative flex justify-center text-sm">
                 <span className="px-2 bg-white text-gray-500">
-                  {isSignUp ? 'Already have an account?' : 'New to the platform?'}
+                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}
                 </span>
               </div>
             </div>
@@ -171,7 +193,8 @@ export default function Login() {
             <div className="mt-6">
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
-                className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+                className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                style={{ width: '100%', display: 'flex', justifyContent: 'center', padding: '0.5rem 1rem', borderRadius: '0.375rem', color: '#1A7DB9', backgroundColor: '#F0F7FC', border: 'none', cursor: 'pointer' }}
               >
                 {isSignUp ? 'Sign in instead' : 'Create an account'}
               </button>

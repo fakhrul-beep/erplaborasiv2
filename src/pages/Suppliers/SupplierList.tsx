@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Supplier } from '../../types';
-import { Plus, Search, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Building2, FileSpreadsheet } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SupplierImportModal from '../../components/Suppliers/SupplierImportModal';
 
 export default function SupplierList() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -54,14 +56,33 @@ export default function SupplierList() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-900">Suppliers</h1>
-        <button
-          onClick={() => navigate('/suppliers/new')}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
-        >
-          <Plus className="-ml-1 mr-2 h-5 w-5" />
-          Add Supplier
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setIsImportModalOpen(true)}
+            className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+          >
+            <FileSpreadsheet className="-ml-1 mr-2 h-5 w-5 text-green-600" />
+            Import
+          </button>
+          <button
+            onClick={() => navigate('/suppliers/new')}
+            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+          >
+            <Plus className="-ml-1 mr-2 h-5 w-5" />
+            Add Supplier
+          </button>
+        </div>
       </div>
+
+      {isImportModalOpen && (
+        <SupplierImportModal
+          onClose={() => setIsImportModalOpen(false)}
+          onSuccess={() => {
+            setIsImportModalOpen(false);
+            fetchSuppliers();
+          }}
+        />
+      )}
 
       <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6">
         <div className="mb-6 relative rounded-md shadow-sm">
