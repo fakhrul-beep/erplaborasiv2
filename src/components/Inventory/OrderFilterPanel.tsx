@@ -212,6 +212,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
                 <input
                   type="date"
                   name="startDate"
+                  aria-label="Start Date"
                   value={filters.startDate}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none"
@@ -220,6 +221,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
                 <input
                   type="date"
                   name="endDate"
+                  aria-label="End Date"
                   value={filters.endDate}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none"
@@ -234,6 +236,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
               <div className="flex gap-2">
                 <select
                   name="status"
+                  aria-label="Status"
                   value={filters.status}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none"
@@ -245,6 +248,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
                 </select>
                 <select
                   name="paymentMethod"
+                  aria-label="Payment Method"
                   value={filters.paymentMethod}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none"
@@ -265,6 +269,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
                 <input
                   type="number"
                   name="minAmount"
+                  aria-label="Min Amount"
                   placeholder="Min"
                   value={filters.minAmount}
                   onChange={handleChange}
@@ -274,6 +279,7 @@ const OrderFilterPanel: React.FC<OrderFilterPanelProps> = ({
                 <input
                   type="number"
                   name="maxAmount"
+                  aria-label="Max Amount"
                   placeholder="Max"
                   value={filters.maxAmount}
                   onChange={handleChange}

@@ -193,6 +193,7 @@ const StockFilterPanel: React.FC<StockFilterPanelProps> = ({
               <div className="flex gap-2">
                 <select
                   name="category"
+                  aria-label="Category"
                   value={filters.category}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none"
@@ -202,6 +203,7 @@ const StockFilterPanel: React.FC<StockFilterPanelProps> = ({
                 </select>
                 <select
                   name="supplier"
+                  aria-label="Supplier"
                   value={filters.supplier}
                   onChange={handleChange}
                   className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none"
@@ -218,6 +220,7 @@ const StockFilterPanel: React.FC<StockFilterPanelProps> = ({
               </label>
               <select
                 name="status"
+                aria-label="Stock Status"
                 value={filters.status}
                 onChange={handleChange}
                 className="w-full text-xs p-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-accent outline-none appearance-none"
@@ -237,6 +240,7 @@ const StockFilterPanel: React.FC<StockFilterPanelProps> = ({
                 <input
                   type="number"
                   name="minStock"
+                  aria-label="Min Stock"
                   placeholder="Min"
                   value={filters.minStock}
                   onChange={handleChange}
@@ -246,6 +250,7 @@ const StockFilterPanel: React.FC<StockFilterPanelProps> = ({
                 <input
                   type="number"
                   name="maxStock"
+                  aria-label="Max Stock"
                   placeholder="Max"
                   value={filters.maxStock}
                   onChange={handleChange}

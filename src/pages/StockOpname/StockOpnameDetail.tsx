@@ -265,7 +265,7 @@ export default function StockOpnameDetail({ type }: Props) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center space-x-4">
-          <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-700">
+          <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-700" aria-label="Back">
             <ArrowLeft className="h-6 w-6" />
           </button>
           <div>
@@ -315,20 +315,28 @@ export default function StockOpnameDetail({ type }: Props) {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 gap-5 sm:grid-cols-4">
         <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <dt className="text-sm font-medium text-gray-500 truncate">Total Items</dt>
-          <dd className="mt-1 text-3xl font-semibold text-gray-900">{stats.totalItems}</dd>
+          <dl>
+            <dt className="text-sm font-medium text-gray-500 truncate">Total Items</dt>
+            <dd className="mt-1 text-3xl font-semibold text-gray-900">{stats.totalItems}</dd>
+          </dl>
         </div>
         <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <dt className="text-sm font-medium text-gray-500 truncate">Counted</dt>
-          <dd className="mt-1 text-3xl font-semibold text-gray-900">{stats.countedItems} <span className="text-sm text-gray-500 font-normal">({Math.round(stats.countedItems/stats.totalItems*100 || 0)}%)</span></dd>
+          <dl>
+            <dt className="text-sm font-medium text-gray-500 truncate">Counted</dt>
+            <dd className="mt-1 text-3xl font-semibold text-gray-900">{stats.countedItems} <span className="text-sm text-gray-500 font-normal">({Math.round(stats.countedItems/stats.totalItems*100 || 0)}%)</span></dd>
+          </dl>
         </div>
         <div className="bg-white overflow-hidden shadow rounded-lg p-5">
-          <dt className="text-sm font-medium text-gray-500 truncate">Matched</dt>
-          <dd className="mt-1 text-3xl font-semibold text-green-600">{stats.matchedItems}</dd>
+          <dl>
+            <dt className="text-sm font-medium text-gray-500 truncate">Matched</dt>
+            <dd className="mt-1 text-3xl font-semibold text-green-600">{stats.matchedItems}</dd>
+          </dl>
         </div>
         <div className="bg-white overflow-hidden shadow rounded-lg p-5 border-l-4 border-red-500">
-          <dt className="text-sm font-medium text-gray-500 truncate">Discrepancies</dt>
-          <dd className="mt-1 text-3xl font-semibold text-red-600">{stats.discrepancyItems}</dd>
+          <dl>
+            <dt className="text-sm font-medium text-gray-500 truncate">Discrepancies</dt>
+            <dd className="mt-1 text-3xl font-semibold text-red-600">{stats.discrepancyItems}</dd>
+          </dl>
         </div>
       </div>
 
@@ -340,6 +348,7 @@ export default function StockOpnameDetail({ type }: Props) {
             </div>
             <input
               type="text"
+              aria-label="Search items"
               className="focus:ring-accent focus:border-accent block w-full pl-10 sm:text-sm border-gray-300 rounded-md py-2"
               placeholder="Search items..."
               value={searchTerm}
@@ -397,6 +406,7 @@ export default function StockOpnameDetail({ type }: Props) {
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <input
                         type="number"
+                        aria-label="Physical Stock"
                         disabled={isFinalized}
                         value={item.physical_stock === undefined || item.physical_stock === null ? '' : item.physical_stock}
                         onChange={(e) => handleStockChange(item.id, e.target.value)}
@@ -416,6 +426,7 @@ export default function StockOpnameDetail({ type }: Props) {
                     <td className="px-6 py-4 whitespace-nowrap">
                        <input
                         type="text"
+                        aria-label="Notes"
                         disabled={isFinalized}
                         value={item.notes || ''}
                         onChange={(e) => handleNotesChange(item.id, e.target.value)}

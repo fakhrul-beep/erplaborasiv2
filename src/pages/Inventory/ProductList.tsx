@@ -161,7 +161,7 @@ export default function ProductList({ type }: ProductListProps) {
             Import Stok
           </button>
            <button
-            onClick={fetchProducts}
+            onClick={() => fetchProducts()}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
@@ -234,10 +234,10 @@ export default function ProductList({ type }: ProductListProps) {
                           {product.stock_quantity.toLocaleString('id-ID')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button onClick={() => navigate(getEditUrl(product.id))} className="text-primary hover:text-primary-hover mr-4">
+                          <button onClick={() => navigate(getEditUrl(product.id))} className="text-primary hover:text-primary-hover mr-4" aria-label="Edit product" title="Edit product">
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900">
+                          <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" aria-label="Delete product" title="Delete product">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </td>

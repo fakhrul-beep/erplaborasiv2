@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
  * @param interval Optional interval in ms to force refresh while active (default: 0 = disabled)
  */
 export function useRefetchOnFocus(
-  refetch: () => void | Promise<void>, 
+  refetch: () => void | (() => void) | Promise<void>, 
   interval: number = 0
 ) {
   const refetchRef = useRef(refetch);
@@ -28,7 +28,15 @@ export function useRefetchOnFocus(
         cleanup();
       }
       // Execute new refetch and store its cleanup (if any)
-      cleanup = refetchRef.current();
+      const result = refetchRef.current();
+      
+      // Handle Promise result
+      if (result && typeof (result as any).then === 'function') {
+        // Promises can't be used as cleanup functions
+        cleanup = undefined;
+      } else {
+        cleanup = result as (() => void) | void;
+      }
     };
 
     const onFocus = () => {
