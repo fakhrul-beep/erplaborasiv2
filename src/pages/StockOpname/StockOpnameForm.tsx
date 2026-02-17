@@ -98,6 +98,8 @@ export default function StockOpnameForm({ type }: Props) {
         <button
           onClick={() => navigate(-1)}
           className="text-gray-500 hover:text-gray-700"
+          type="button"
+          aria-label="Go back"
         >
           <ArrowLeft className="h-6 w-6" />
         </button>
@@ -107,8 +109,9 @@ export default function StockOpnameForm({ type }: Props) {
       <div className="bg-white shadow px-4 py-5 sm:rounded-lg sm:p-6 max-w-2xl">
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-gray-700">Scheduled Date</label>
+            <label htmlFor="scheduled_date" className="block text-sm font-medium text-gray-700">Scheduled Date</label>
             <input
+              id="scheduled_date"
               type="date"
               required
               value={formData.scheduled_date}
@@ -119,8 +122,9 @@ export default function StockOpnameForm({ type }: Props) {
 
           {warehouses.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700">Warehouse</label>
+              <label htmlFor="warehouse_id" className="block text-sm font-medium text-gray-700">Warehouse</label>
               <select
+                id="warehouse_id"
                 value={formData.warehouse_id}
                 onChange={e => setFormData({ ...formData, warehouse_id: e.target.value })}
                 className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm"
@@ -133,8 +137,9 @@ export default function StockOpnameForm({ type }: Props) {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700">Notes</label>
+            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
             <textarea
+              id="notes"
               rows={3}
               value={formData.notes}
               onChange={e => setFormData({ ...formData, notes: e.target.value })}

@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Order } from '../../types';
-import { Plus, Search, Eye, FileText, Calendar, DollarSign, X, Edit, Save, RefreshCw, Upload, Download } from 'lucide-react';
+import { Plus, Eye, Edit, RefreshCw, Upload, Download, Save } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
@@ -18,7 +17,6 @@ interface OrderListProps {
 
 export default function OrderList({ type }: OrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type
-  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filteredCount, setFilteredCount] = useState(0);
   const [filters, setFilters] = useState<FilterState | null>(null);
@@ -38,19 +36,14 @@ export default function OrderList({ type }: OrderListProps) {
 
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadData();
-  }, [type, filters]);
-
-  const loadData = async () => {
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
 
       // Fetch Customers
-      const { data: customersData, error: customersError } = await supabase.from('customers').select('*');
+      const { data: customersData } = await supabase.from('customers').select('*');
       const customersList = customersData || [];
-      if (!customersError) setCustomers(customersList);
-
+      
       // Fetch Orders
       let query = supabase
         .from('orders')
@@ -164,7 +157,11 @@ export default function OrderList({ type }: OrderListProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [type, filters]);
+
+  useEffect(() => {
+    fetchOrders();
+  }, [fetchOrders]);
 
   const handleFilterChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
@@ -293,6 +290,7 @@ export default function OrderList({ type }: OrderListProps) {
             <button
             onClick={fetchOrders}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
+            type="button"
             >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -300,6 +298,7 @@ export default function OrderList({ type }: OrderListProps) {
             <button
             onClick={() => navigate(getAddUrl())}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent min-h-[44px]"
+            type="button"
             >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             New Order
@@ -340,7 +339,7 @@ export default function OrderList({ type }: OrderListProps) {
                       <tr key={order.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => { setSelectedOrder(order); setIsModalOpen(true); }}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">#{order.id.slice(0, 8)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <button onClick={(e) => handleCustomerClick(e, order.customer_id)} className="text-primary hover:text-primary-hover hover:underline">
+                          <button onClick={(e) => handleCustomerClick(e, order.customer_id)} className="text-primary hover:text-primary-hover hover:underline" type="button">
                             {order.customer?.name || 'Unknown'}
                           </button>
                         </td>
@@ -361,6 +360,7 @@ export default function OrderList({ type }: OrderListProps) {
                              onClick={(e) => handleDownloadInvoice(e, order)}
                              className="text-gray-500 hover:text-gray-700"
                              title="Download Invoice"
+                             type="button"
                           >
                              <Download className="h-4 w-4" />
                           </button>
@@ -369,11 +369,12 @@ export default function OrderList({ type }: OrderListProps) {
                               onClick={(e) => handleUploadPayment(e, order)}
                               className="text-accent-700 hover:text-accent-800 flex items-center"
                               title="Upload Payment Proof"
+                              type="button"
                             >
                               <Upload className="h-4 w-4" />
                             </button>
                           )}
-                          <button className="text-primary hover:text-primary-hover flex items-center">
+                          <button className="text-primary hover:text-primary-hover flex items-center" type="button">
                             <Eye className="h-4 w-4 mr-1" /> View
                           </button>
                         </td>
@@ -418,13 +419,13 @@ export default function OrderList({ type }: OrderListProps) {
                   {
                     icon: Download,
                     label: 'Invoice',
-                    onClick: (id) => handleDownloadInvoice({ stopPropagation: () => {} } as any, order),
+                    onClick: (_) => handleDownloadInvoice({ stopPropagation: () => {} } as any, order),
                     variant: 'default'
                   },
                   ...((order.payment_status === 'unpaid' || order.payment_status === 'rejected') ? [{
                     icon: Upload,
                     label: 'Pay',
-                    onClick: (id: string) => handleUploadPayment({ stopPropagation: () => {} } as any, order),
+                    onClick: (_: string) => handleUploadPayment({ stopPropagation: () => {} } as any, order),
                     variant: 'primary' as const
                   }] : [])
                 ]}
@@ -494,21 +495,21 @@ export default function OrderList({ type }: OrderListProps) {
           <div className="space-y-6">
             <div className="flex justify-end">
               {!isEditingCustomer ? (
-                <button onClick={() => setIsEditingCustomer(true)} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <button onClick={() => setIsEditingCustomer(true)} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" type="button">
                   <Edit className="h-4 w-4 mr-2" /> Edit
                 </button>
               ) : (
                 <div className="flex space-x-2">
-                  <button onClick={() => { setIsEditingCustomer(false); setEditedCustomer(selectedCustomer); }} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Cancel</button>
-                  <button onClick={handleUpdateCustomer} className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-hover"><Save className="h-4 w-4 mr-2" /> Save</button>
+                  <button onClick={() => { setIsEditingCustomer(false); setEditedCustomer(selectedCustomer); }} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" type="button">Cancel</button>
+                  <button onClick={handleUpdateCustomer} className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-hover" type="button"><Save className="h-4 w-4 mr-2" /> Save</button>
                 </div>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><h4 className="text-sm font-medium text-gray-500">Name</h4>{isEditingCustomer ? <input type="text" value={editedCustomer.name} onChange={(e) => setEditedCustomer({ ...editedCustomer, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.name}</p>}</div>
-              <div><h4 className="text-sm font-medium text-gray-500">Email</h4>{isEditingCustomer ? <input type="email" value={editedCustomer.email} onChange={(e) => setEditedCustomer({ ...editedCustomer, email: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.email}</p>}</div>
-              <div><h4 className="text-sm font-medium text-gray-500">Phone</h4>{isEditingCustomer ? <input type="text" value={editedCustomer.phone} onChange={(e) => setEditedCustomer({ ...editedCustomer, phone: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.phone}</p>}</div>
-              <div className="sm:col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingCustomer ? <textarea rows={3} value={editedCustomer.address} onChange={(e) => setEditedCustomer({ ...editedCustomer, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.address}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Name</h4>{isEditingCustomer ? <input type="text" value={editedCustomer.name} onChange={(e) => setEditedCustomer({ ...editedCustomer, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Customer Name" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.name}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Email</h4>{isEditingCustomer ? <input type="email" value={editedCustomer.email} onChange={(e) => setEditedCustomer({ ...editedCustomer, email: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Customer Email" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.email}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Phone</h4>{isEditingCustomer ? <input type="text" value={editedCustomer.phone} onChange={(e) => setEditedCustomer({ ...editedCustomer, phone: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Customer Phone" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.phone}</p>}</div>
+              <div className="sm:col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingCustomer ? <textarea rows={3} value={editedCustomer.address} onChange={(e) => setEditedCustomer({ ...editedCustomer, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Customer Address" /> : <p className="mt-1 text-sm text-gray-900">{selectedCustomer.address}</p>}</div>
             </div>
             <div className="flex justify-end pt-4 border-t"><button type="button" className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm min-h-[44px]" onClick={() => setIsCustomerModalOpen(false)}>Close</button></div>
           </div>

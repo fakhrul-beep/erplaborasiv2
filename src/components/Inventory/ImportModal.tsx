@@ -237,7 +237,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target?.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
+        const wb = XLSX.read(bstr, { type: 'array' });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawData = XLSX.utils.sheet_to_json(ws, { header: 1 }) as unknown[][];
@@ -283,7 +283,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
         toast.error('Gagal membaca file. Pastikan format benar.');
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
   };
 
   return (
@@ -295,7 +295,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
             <FileSpreadsheet className="mr-2 h-6 w-6 text-green-600" />
             Import Stok {type === 'equipment' ? 'Perlengkapan' : 'Bahan Baku'}
           </h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700" aria-label="Close" type="button">
             <X className="h-6 w-6" />
           </button>
         </div>
@@ -329,6 +329,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
                     onChange={handleFileUpload}
                     className="hidden"
                     accept=".xlsx, .xls, .csv"
+                    aria-label="Upload Excel or CSV file"
                   />
                 </div>
 
@@ -341,6 +342,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
                     <button
                       onClick={downloadTemplate}
                       className="mt-2 text-primary hover:underline text-sm font-semibold"
+                      type="button"
                     >
                       Download Template Excel
                     </button>
@@ -440,6 +442,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
                   <button
                     onClick={() => setIsPaused(!isPaused)}
                     className="flex items-center px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 transition-colors font-semibold shadow-md"
+                    type="button"
                   >
                     {isPaused ? <Play className="h-4 w-4 mr-2" /> : <Pause className="h-4 w-4 mr-2" />}
                     {isPaused ? 'Lanjutkan' : 'Pause'}
@@ -447,6 +450,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
                   <button
                     onClick={() => setIsCancelled(true)}
                     className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold shadow-md"
+                    type="button"
                   >
                     <Ban className="h-4 w-4 mr-2" />
                     Batal
@@ -457,7 +461,7 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
               <div className="w-full max-w-2xl border rounded-lg overflow-hidden bg-white shadow-sm">
                 <div className="bg-gray-800 px-4 py-2 flex justify-between items-center">
                   <span className="text-xs font-mono text-gray-300">Activity Logs</span>
-                  <button onClick={downloadLogs} className="text-xs text-blue-400 hover:text-blue-300 flex items-center">
+                  <button onClick={downloadLogs} className="text-xs text-blue-400 hover:text-blue-300 flex items-center" type="button">
                     <Download className="h-3 w-3 mr-1" /> Download Log
                   </button>
                 </div>
@@ -476,17 +480,18 @@ export default function ImportModal({ onClose, onSuccess, type }: ImportModalPro
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-gray-50 flex justify-end items-center gap-3">
           {step === 'upload' ? (
-            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">Tutup</button>
+            <button onClick={onClose} className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" type="button">Tutup</button>
           ) : step === 'preview' ? (
             <>
-              <button onClick={() => setStep('upload')} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900">Kembali ke Upload</button>
-              <button onClick={confirmImport} className="px-6 py-2 bg-primary text-white rounded-md text-sm font-bold hover:bg-primary-hover shadow-lg">Konfirmasi Import</button>
+              <button onClick={() => setStep('upload')} className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900" type="button">Kembali ke Upload</button>
+              <button onClick={confirmImport} className="px-6 py-2 bg-primary text-white rounded-md text-sm font-bold hover:bg-primary-hover shadow-lg" type="button">Konfirmasi Import</button>
             </>
           ) : (
             <button
               onClick={errorCount > 0 ? downloadLogs : onClose}
               disabled={loading && !isPaused && !isCancelled}
               className={`px-6 py-2 rounded-md text-sm font-bold shadow-lg flex items-center ${loading && !isPaused && !isCancelled ? 'bg-gray-300 cursor-not-allowed' : 'bg-primary text-white hover:bg-primary-hover'}`}
+              type="button"
             >
               {loading && !isPaused && !isCancelled ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
               {loading ? 'Sedang Memproses...' : errorCount > 0 ? 'Download Error Log & Tutup' : 'Selesai & Tutup'}

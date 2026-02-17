@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase, withRetry, clearQueryCache } from '../../lib/supabase';
-import { Plus, Search, Edit, Trash2, Star, Loader2 } from 'lucide-react';
+import { Plus, Edit, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Modal from '../../components/Modal';
 import { useAuthStore } from '../../store/authStore';
@@ -191,6 +191,7 @@ export default function VendorManagement() {
         <button 
           onClick={() => { setSelectedVendor(null); setFormData({ name: '', coverage_area: '', service_type: 'reguler', rate_per_kg: 0, estimated_days: 1 }); setIsModalOpen(true); }}
           className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary-hover"
+          type="button"
         >
           <Plus className="mr-2 h-4 w-4" /> Tambah Vendor
         </button>
@@ -215,7 +216,7 @@ export default function VendorManagement() {
                   </div>
                 </div>
                 <div className="flex space-x-2">
-                  <button onClick={() => openEdit(vendor)} className="p-2 text-gray-400 hover:text-primary"><Edit className="h-4 w-4" /></button>
+                  <button onClick={() => openEdit(vendor)} className="p-2 text-gray-400 hover:text-primary" type="button" aria-label="Edit vendor"><Edit className="h-4 w-4" /></button>
                 </div>
               </div>
             </li>
@@ -272,6 +273,7 @@ export default function VendorManagement() {
               onClick={() => setIsModalOpen(false)} 
               disabled={loading}
               className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              type="button"
             >
               Batal
             </button>
@@ -279,6 +281,7 @@ export default function VendorManagement() {
               onClick={handleSave} 
               disabled={loading}
               className="px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary-hover disabled:opacity-50 flex items-center"
+              type="button"
             >
               {loading ? (
                 <>

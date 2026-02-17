@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase, withRetry } from '../../lib/supabase';
-import { Truck, Package, MapPin, CheckCircle, AlertTriangle, Save, ArrowLeft, Camera, Edit3, Shield } from 'lucide-react';
+import { Package, MapPin, AlertTriangle, Save, ArrowLeft, Camera, Shield } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '../../store/authStore';
 
@@ -117,7 +117,7 @@ export default function ShipmentDetail() {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `pod-${id}-${Math.random()}.${fileExt}`;
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from('shipment-proofs')
         .upload(fileName, file);
 
@@ -357,7 +357,7 @@ export default function ShipmentDetail() {
   if (loading) return <div className="p-8 text-center">Memuat...</div>;
   if (!shipment) return <div className="p-8 text-center">Pengiriman tidak ditemukan.</div>;
 
-  const { volumetricWeight, totalWeight, shippingCost } = calculateMetrics();
+  const { volumetricWeight, shippingCost } = calculateMetrics();
   const requiresApproval = shippingCost > 10000000;
   const isPerlengkapan = shipment.type === 'purchase';
   const pageTitle = isPerlengkapan ? 'Pengiriman Perlengkapan' : 'Pengiriman Bahan Baku';
@@ -365,22 +365,22 @@ export default function ShipmentDetail() {
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900">
+        <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900" type="button" aria-label="Go back">
           <ArrowLeft className="mr-2 h-4 w-4" /> Kembali
         </button>
         <h2 className="text-lg font-semibold text-gray-900">{pageTitle}</h2>
         <div className="flex space-x-3">
           {profile?.role === 'superadmin' && requiresApproval && shipment.approval_status === 'pending' && (
             <>
-              <button onClick={() => handleApproval('rejected')} className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200">Tolak</button>
-              <button onClick={() => handleApproval('approved')} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">Setujui</button>
+              <button onClick={() => handleApproval('rejected')} className="px-4 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200" type="button">Tolak</button>
+              <button onClick={() => handleApproval('approved')} className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700" type="button">Setujui</button>
             </>
           )}
-          <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50">
+          <button onClick={() => setIsEditing(!isEditing)} className="px-4 py-2 bg-white border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 hover:bg-gray-50" type="button">
             {isEditing ? 'Batal' : 'Edit Pengiriman'}
           </button>
           {isEditing && (
-            <button onClick={handleSave} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover flex items-center">
+            <button onClick={handleSave} className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary-hover flex items-center" type="button">
               <Save className="mr-2 h-4 w-4" /> Simpan
             </button>
           )}
@@ -412,6 +412,7 @@ export default function ShipmentDetail() {
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm"
                     value={formData.vendor_id}
                     onChange={(e) => setFormData({...formData, vendor_id: e.target.value})}
+                    aria-label="Select vendor"
                   >
                     <option value="">Pilih Vendor</option>
                     {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -428,6 +429,7 @@ export default function ShipmentDetail() {
                     className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm"
                     value={formData.tracking_number}
                     onChange={(e) => setFormData({...formData, tracking_number: e.target.value})}
+                    aria-label="Tracking number"
                   />
                 ) : (
                   <p className="mt-1 text-sm font-medium">{shipment.tracking_number || '-'}</p>
@@ -445,16 +447,16 @@ export default function ShipmentDetail() {
               <div>
                 <label className="block text-xs text-gray-500">Berat Aktual (kg)</label>
                 {isEditing ? (
-                  <input type="number" className="w-full border-gray-300 rounded-md sm:text-sm" value={formData.actual_weight} onChange={(e) => setFormData({...formData, actual_weight: parseFloat(e.target.value)})} />
+                  <input type="number" className="w-full border-gray-300 rounded-md sm:text-sm" value={formData.actual_weight} onChange={(e) => setFormData({...formData, actual_weight: parseFloat(e.target.value)})} aria-label="Actual weight" />
                 ) : <p className="text-sm">{shipment.actual_weight} kg</p>}
               </div>
               <div>
                 <label className="block text-xs text-gray-500">Dimensi (P×L×T)</label>
                 {isEditing ? (
                   <div className="flex space-x-1">
-                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_p} onChange={(e) => setFormData({...formData, dimension_p: parseFloat(e.target.value)})} />
-                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_l} onChange={(e) => setFormData({...formData, dimension_l: parseFloat(e.target.value)})} />
-                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_t} onChange={(e) => setFormData({...formData, dimension_t: parseFloat(e.target.value)})} />
+                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_p} onChange={(e) => setFormData({...formData, dimension_p: parseFloat(e.target.value)})} aria-label="Length (P)" />
+                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_l} onChange={(e) => setFormData({...formData, dimension_l: parseFloat(e.target.value)})} aria-label="Width (L)" />
+                    <input type="number" className="w-1/3 border-gray-300 rounded-md sm:text-sm" value={formData.dimension_t} onChange={(e) => setFormData({...formData, dimension_t: parseFloat(e.target.value)})} aria-label="Height (T)" />
                   </div>
                 ) : <p className="text-sm">{shipment.dimension_p}×{shipment.dimension_l}×{shipment.dimension_t} cm</p>}
               </div>
@@ -481,7 +483,7 @@ export default function ShipmentDetail() {
                   <img src={shipment.delivery_proof_url} alt="POD" className="w-full h-48 object-cover rounded-lg border" />
                 ) : (
                   <div className="w-full h-48 bg-gray-50 border-2 border-dashed rounded-lg flex items-center justify-center">
-                    <input type="file" id="pod-upload" className="hidden" accept="image/*" onChange={handleFileUpload} />
+                    <input type="file" id="pod-upload" className="hidden" accept="image/*" onChange={handleFileUpload} aria-label="Upload proof of delivery" />
                     <label htmlFor="pod-upload" className="cursor-pointer text-sm text-primary hover:underline">Upload Foto</label>
                   </div>
                 )}
@@ -506,15 +508,15 @@ export default function ShipmentDetail() {
                       onTouchEnd={stopDrawing}
                     />
                     <div className="absolute bottom-2 right-2 space-x-2">
-                      <button onClick={clearSignature} className="px-2 py-1 text-xs bg-gray-200 rounded">Reset</button>
-                      <button onClick={saveSignature} className="px-2 py-1 text-xs bg-primary text-white rounded">Simpan TTD</button>
+                      <button onClick={clearSignature} className="px-2 py-1 text-xs bg-gray-200 rounded" type="button" aria-label="Clear signature">Reset</button>
+                      <button onClick={saveSignature} className="px-2 py-1 text-xs bg-primary text-white rounded" type="button" aria-label="Save signature">Simpan TTD</button>
                     </div>
                   </div>
                 )}
               </div>
             </div>
             <div className="mt-4 pt-4 border-t">
-               <button onClick={captureGPS} className="flex items-center text-sm text-primary hover:underline">
+               <button onClick={captureGPS} className="flex items-center text-sm text-primary hover:underline" type="button">
                  <MapPin className="mr-2 h-4 w-4" /> {shipment.gps_coordinates ? `Lokasi: ${shipment.gps_coordinates}` : 'Tangkap Lokasi GPS'}
                </button>
             </div>
@@ -531,6 +533,7 @@ export default function ShipmentDetail() {
                   key={s} 
                   onClick={() => handleStatusChange(s)}
                   className={`w-full text-left px-3 py-2 rounded-md text-sm capitalize ${shipment.status === s ? 'bg-primary text-white' : 'hover:bg-gray-100'}`}
+                  type="button"
                 >
                   {s.replace('_', ' ')}
                 </button>

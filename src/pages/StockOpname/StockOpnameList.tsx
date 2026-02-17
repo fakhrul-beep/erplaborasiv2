@@ -1,9 +1,9 @@
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { StockOpnameSession } from '../../types';
-import { Plus, Search, Calendar, FileText, ArrowRight, RefreshCw } from 'lucide-react';
+import { Plus, Search, ArrowRight, RefreshCw } from 'lucide-react';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 
@@ -69,6 +69,7 @@ export default function StockOpnameList({ type }: Props) {
             <button
                 onClick={fetchSessions}
                 className="inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
+                type="button"
             >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -76,6 +77,7 @@ export default function StockOpnameList({ type }: Props) {
             <button
             onClick={() => navigate(type === 'equipment' ? '/inventory/equipment/opname/new' : '/inventory/raw-materials/opname/new')}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-accent hover:bg-accent-hover"
+            type="button"
             >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             New Session
@@ -94,6 +96,7 @@ export default function StockOpnameList({ type }: Props) {
             placeholder="Search sessions..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search sessions"
           />
         </div>
 
@@ -138,7 +141,7 @@ export default function StockOpnameList({ type }: Props) {
                           User
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button className="text-primary hover:text-primary-hover">
+                          <button className="text-primary hover:text-primary-hover" type="button" aria-label="View session details">
                             <ArrowRight className="h-5 w-5" />
                           </button>
                         </td>

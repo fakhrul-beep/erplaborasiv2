@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
 import Logo from '../components/Logo';
-import { LayoutDashboard, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function Login() {
@@ -193,6 +193,7 @@ export default function Login() {
               <button
                 onClick={() => setIsSignUp(!isSignUp)}
                 className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary bg-primary-50 hover:bg-primary-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary cursor-pointer"
+                type="button"
               >
                 {isSignUp ? 'Sign in instead' : 'Create an account'}
               </button>

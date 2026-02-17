@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { Supplier } from '../../types';
@@ -60,6 +60,7 @@ export default function SupplierList() {
           <button
             onClick={() => setIsImportModalOpen(true)}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+            type="button"
           >
             <FileSpreadsheet className="-ml-1 mr-2 h-5 w-5 text-green-600" />
             Import
@@ -67,6 +68,7 @@ export default function SupplierList() {
           <button
             onClick={() => navigate('/suppliers/new')}
             className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent"
+            type="button"
           >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             Add Supplier
@@ -95,6 +97,7 @@ export default function SupplierList() {
             placeholder="Search suppliers..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Search suppliers"
           />
         </div>
 
@@ -137,10 +140,10 @@ export default function SupplierList() {
                            </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button onClick={() => navigate(`/suppliers/${supplier.id}/edit`)} className="text-primary hover:text-primary-hover mr-4">
+                          <button onClick={() => navigate(`/suppliers/${supplier.id}/edit`)} className="text-primary hover:text-primary-hover mr-4" aria-label="Edit supplier" type="button">
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDelete(supplier.id)} className="text-red-600 hover:text-red-900">
+                          <button onClick={() => handleDelete(supplier.id)} className="text-red-600 hover:text-red-900" aria-label="Delete supplier" type="button">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </td>

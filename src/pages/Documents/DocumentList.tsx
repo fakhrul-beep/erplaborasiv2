@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Order, PurchaseOrder } from '../../types';
-import { Download, Search, Filter, FileText, Calendar, ArrowUp, ArrowDown } from 'lucide-react';
+import { Download, Search, Filter, ArrowUp, ArrowDown } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { generateInvoicePDF, generatePurchaseOrderPDF } from '../../utils/pdfGenerator';
@@ -24,8 +24,6 @@ export default function DocumentList() {
   const { formatCurrency } = useSettingsStore();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'invoice' | 'po'>('all');
   
@@ -49,9 +47,6 @@ export default function DocumentList() {
 
       const customersData = customersRes.data || [];
       const suppliersData = suppliersRes.data || [];
-
-      setCustomers(customersData);
-      setSuppliers(suppliersData);
       
       // Fetch Orders (Invoices)
       const { data: orders, error: ordersError } = await supabase
@@ -199,6 +194,7 @@ export default function DocumentList() {
                value={typeFilter}
                onChange={(e) => setTypeFilter(e.target.value as any)}
                className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm rounded-md"
+               aria-label="Filter by type"
              >
                <option value="all">All Documents</option>
                <option value="invoice">Invoices</option>
@@ -286,6 +282,7 @@ export default function DocumentList() {
                             <button
                               onClick={() => handleDownload(doc)}
                               className="text-gray-600 hover:text-gray-900 flex items-center justify-end w-full"
+                              type="button"
                             >
                               <Download className="h-4 w-4 mr-1" /> Download
                             </button>

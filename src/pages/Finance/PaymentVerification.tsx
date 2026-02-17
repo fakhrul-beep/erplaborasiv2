@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Payment } from '../../types';
-import { Check, X, Search, FileText, ExternalLink, Filter, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Search, ExternalLink, RefreshCw, AlertTriangle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import Modal from '../../components/Modal';
@@ -10,10 +10,6 @@ import { useSettingsStore } from '../../store/settingsStore';
 export default function PaymentVerification() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [orders, setOrders] = useState<any[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -32,11 +28,7 @@ export default function PaymentVerification() {
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const fetchPayments = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -52,11 +44,6 @@ export default function PaymentVerification() {
       const customersData = customersRes.data || [];
       const poData = poRes.data || [];
       const suppliersData = suppliersRes.data || [];
-
-      setOrders(ordersData);
-      setCustomers(customersData);
-      setPurchaseOrders(poData);
-      setSuppliers(suppliersData);
 
       // Fetch payments
       const { data, error } = await supabase
@@ -96,7 +83,11 @@ export default function PaymentVerification() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPayments();
+  }, [fetchPayments]);
 
   const handleVerify = async (paymentId: string, status: 'verified' | 'rejected', notes?: string) => {
     try {
@@ -246,7 +237,7 @@ export default function PaymentVerification() {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold text-gray-900">Payment Verification</h1>
-        <button onClick={fetchPayments} className="p-2 text-gray-500 hover:text-gray-700">
+        <button onClick={fetchPayments} className="p-2 text-gray-500 hover:text-gray-700" type="button" aria-label="Refresh payments">
            <RefreshCw className="h-5 w-5" />
         </button>
       </div>
@@ -265,6 +256,7 @@ export default function PaymentVerification() {
               placeholder="Search..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search payments"
             />
           </div>
 
@@ -273,6 +265,7 @@ export default function PaymentVerification() {
              value={typeFilter}
              onChange={e => setTypeFilter(e.target.value as any)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by type"
            >
              <option value="all">All Types (Sales & Purchase)</option>
              <option value="sale">Sales Only</option>
@@ -284,6 +277,7 @@ export default function PaymentVerification() {
              value={categoryFilter}
              onChange={e => setCategoryFilter(e.target.value as any)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by category"
            >
              <option value="all">All Categories</option>
              <option value="equipment">Equipment (Perlengkapan)</option>
@@ -295,6 +289,7 @@ export default function PaymentVerification() {
              value={statusFilter}
              onChange={e => setStatusFilter(e.target.value as any)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by status"
            >
              <option value="all">All Statuses</option>
              <option value="unverified">Unverified</option>
@@ -310,11 +305,13 @@ export default function PaymentVerification() {
              value={dateFilter}
              onChange={e => setDateFilter(e.target.value)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by date"
            />
            <select
              value={monthFilter}
              onChange={e => setMonthFilter(e.target.value)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by month"
            >
              <option value="">All Months</option>
              {Array.from({ length: 12 }, (_, i) => (
@@ -325,6 +322,7 @@ export default function PaymentVerification() {
              value={yearFilter}
              onChange={e => setYearFilter(e.target.value)}
              className="block w-full border-gray-300 rounded-md shadow-sm focus:ring-accent focus:border-accent sm:text-sm py-2"
+             aria-label="Filter by year"
            >
              <option value="">All Years</option>
              <option value="2024">2024</option>
@@ -343,6 +341,7 @@ export default function PaymentVerification() {
                setYearFilter('');
              }}
              className="flex justify-center items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+             type="button"
            >
              Clear Filters
            </button>
@@ -403,6 +402,7 @@ export default function PaymentVerification() {
                                   setIsModalOpen(true);
                                 }}
                                 className="text-primary hover:text-primary-900"
+                                type="button"
                               >
                                 View & Verify
                               </button>
@@ -457,117 +457,107 @@ export default function PaymentVerification() {
                       <p className="mt-1 text-lg font-bold text-gray-900">{formatCurrency(selectedPayment.amount)}</p>
                     </div>
                     <div>
+                      <h4 className="text-sm font-medium text-gray-500">Payment Method</h4>
+                      <p className="mt-1 text-sm text-gray-900 capitalize">{selectedPayment.payment_method}</p>
+                    </div>
+                    <div>
                       <h4 className="text-sm font-medium text-gray-500">Date</h4>
                       <p className="mt-1 text-sm text-gray-900">{format(new Date(selectedPayment.payment_date), 'PPP')}</p>
                     </div>
                     <div>
-                      <h4 className="text-sm font-medium text-gray-500">Method</h4>
-                      <p className="mt-1 text-sm text-gray-900 capitalize">{selectedPayment.payment_method.replace('_', ' ')}</p>
-                    </div>
-                    <div>
                       <h4 className="text-sm font-medium text-gray-500">Status</h4>
-                      <p className={`mt-1 text-sm font-medium ${
-                        selectedPayment.status === 'verified' ? 'text-green-600' : 
-                        selectedPayment.status === 'rejected' ? 'text-red-600' : 'text-orange-600'
-                      }`}>
-                        {selectedPayment.status.toUpperCase()}
-                      </p>
+                      <span className={`mt-1 px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(selectedPayment.status)}`}>
+                        {selectedPayment.status}
+                      </span>
                     </div>
+                    {selectedPayment.proof_url && (
+                        <div className="col-span-2">
+                            <h4 className="text-sm font-medium text-gray-500 mb-2">Payment Proof</h4>
+                            <div className="border rounded-lg p-2 bg-gray-50 flex justify-center">
+                                <a href={selectedPayment.proof_url} target="_blank" rel="noopener noreferrer">
+                                    <img src={selectedPayment.proof_url} alt="Payment Proof" className="max-h-64 object-contain rounded" />
+                                </a>
+                            </div>
+                            <div className="mt-1 text-center">
+                                <a href={selectedPayment.proof_url} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center justify-center">
+                                    <ExternalLink className="h-3 w-3 mr-1" /> View Full Size
+                                </a>
+                            </div>
+                        </div>
+                    )}
                     
-                    {selectedPayment.notes && !isRejecting && (
-                      <div className="col-span-2">
-                         <h4 className="text-sm font-medium text-gray-500">Notes</h4>
-                         <p className="mt-1 text-sm text-gray-700 bg-gray-50 p-2 rounded">{selectedPayment.notes}</p>
-                      </div>
+                    {selectedPayment.notes && (
+                         <div className="col-span-2">
+                          <h4 className="text-sm font-medium text-gray-500">Notes</h4>
+                          <p className="mt-1 text-sm text-gray-900 bg-yellow-50 p-2 rounded border border-yellow-100">{selectedPayment.notes}</p>
+                        </div>
                     )}
                   </div>
                 );
              })()}
 
-            {selectedPayment.proof_url ? (
-              <div>
-                <h4 className="text-sm font-medium text-gray-500 mb-2">Payment Proof</h4>
-                <div className="border rounded-lg p-3 bg-gray-50 flex items-center justify-between">
-                   <div className="flex items-center text-gray-700 truncate mr-2">
-                      <FileText className="h-5 w-5 mr-2 text-gray-400" />
-                      <span className="text-sm truncate">{selectedPayment.proof_url.split('/').pop()}</span>
-                   </div>
-                   <a 
-                     href={selectedPayment.proof_url} 
-                     target="_blank" 
-                     rel="noopener noreferrer" 
-                     className="flex-shrink-0 inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                   >
-                      <ExternalLink className="h-3 w-3 mr-1" /> Open
-                   </a>
-                </div>
-              </div>
-            ) : (
-               <div className="text-sm text-gray-500 italic">No proof document provided.</div>
-            )}
-            
-            {isRejecting && (
-                <div className="bg-red-50 p-4 rounded-md border border-red-200">
-                    <h4 className="text-sm font-medium text-red-800 mb-2 flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-2" />
-                        Rejection Reason
-                    </h4>
-                    <textarea 
-                        className="w-full border-red-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
-                        rows={3}
-                        placeholder="Please explain why this payment is rejected..."
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
-                    />
-                    <div className="mt-3 flex justify-end space-x-2">
-                        <button 
-                            className="px-3 py-1.5 bg-white border border-gray-300 rounded text-sm text-gray-700 hover:bg-gray-50"
-                            onClick={() => setIsRejecting(false)}
-                        >
-                            Cancel
-                        </button>
-                        <button 
-                            className="px-3 py-1.5 bg-red-600 border border-transparent rounded text-sm text-white hover:bg-red-700"
-                            onClick={() => handleVerify(selectedPayment.id, 'rejected', rejectionReason)}
-                            disabled={!rejectionReason.trim()}
-                        >
-                            Confirm Rejection
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            <div className="flex justify-end space-x-3 pt-4 border-t">
-              {!isRejecting && (
-                  <>
-                    <button
-                        type="button"
-                        className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:text-sm"
-                        onClick={() => setIsModalOpen(false)}
-                    >
-                        Close
-                    </button>
-                    {selectedPayment.status === 'unverified' && (
-                        <>
+             <div className="flex justify-end space-x-3 pt-4 border-t">
+                {selectedPayment.status === 'unverified' && !isRejecting ? (
+                    <>
                         <button
-                            type="button"
-                            className="bg-red-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-red-700 focus:outline-none sm:text-sm"
                             onClick={() => setIsRejecting(true)}
+                            className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
+                            type="button"
                         >
                             Reject
                         </button>
                         <button
-                            type="button"
-                            className="bg-green-600 rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white hover:bg-green-700 focus:outline-none sm:text-sm"
                             onClick={() => handleVerify(selectedPayment.id, 'verified')}
+                            className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                            type="button"
                         >
                             Verify Payment
                         </button>
-                        </>
-                    )}
-                  </>
-              )}
-            </div>
+                    </>
+                ) : isRejecting ? (
+                    <div className="w-full space-y-3">
+                        <div className="bg-red-50 p-3 rounded-md border border-red-100 flex items-start">
+                            <AlertTriangle className="h-5 w-5 text-red-500 mr-2 mt-0.5" />
+                            <div className="text-sm text-red-700">
+                                <p className="font-medium">Rejecting Payment</p>
+                                <p>Please provide a reason for rejection. This will be visible to the user.</p>
+                            </div>
+                        </div>
+                        <textarea
+                            value={rejectionReason}
+                            onChange={(e) => setRejectionReason(e.target.value)}
+                            placeholder="Reason for rejection..."
+                            className="w-full border-gray-300 rounded-md shadow-sm focus:ring-red-500 focus:border-red-500 sm:text-sm"
+                            rows={3}
+                        />
+                        <div className="flex justify-end space-x-3">
+                            <button
+                                onClick={() => setIsRejecting(false)}
+                                className="bg-white text-gray-700 border border-gray-300 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-50"
+                                type="button"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => handleVerify(selectedPayment.id, 'rejected', rejectionReason)}
+                                disabled={!rejectionReason.trim()}
+                                className="bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                                type="button"
+                            >
+                                Confirm Rejection
+                            </button>
+                        </div>
+                    </div>
+                ) : (
+                    <button
+                        onClick={() => { setIsModalOpen(false); setIsRejecting(false); }}
+                        className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md text-sm font-medium hover:bg-gray-200"
+                        type="button"
+                    >
+                        Close
+                    </button>
+                )}
+             </div>
           </div>
         )}
       </Modal>

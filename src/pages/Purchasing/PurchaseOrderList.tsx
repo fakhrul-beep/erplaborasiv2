@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { PurchaseOrder } from '../../types';
-import { Plus, Search, Eye, Calendar, X, Edit, Save, RefreshCw, Download } from 'lucide-react';
+import { Plus, Edit, Save, RefreshCw, Download } from 'lucide-react';
 import { generatePurchaseOrderPDF } from '../../utils/pdfGenerator';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -108,7 +107,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
         query = query.order('created_at', { ascending: false });
       }
 
-      const { data, count, error } = await query;
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -287,17 +286,19 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
             <button
             onClick={fetchOrders}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
-            >
+            type="button"
+          >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
-            </button>
-            <button
+          </button>
+          <button
             onClick={() => navigate('/purchasing/new')}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent min-h-[44px]"
-            >
+            type="button"
+          >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             New Purchase Order
-            </button>
+          </button>
         </div>
       </div>
 
@@ -332,7 +333,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                       <tr key={order.id}>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">#{order.id.slice(0, 8)}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <button onClick={() => handleViewSupplier(order.supplier_id)} className="text-primary hover:text-primary-hover hover:underline">
+                          <button onClick={() => handleViewSupplier(order.supplier_id)} className="text-primary hover:text-primary-hover hover:underline" type="button" aria-label="View supplier details">
                             {order.supplier?.name || 'Unknown'}
                           </button>
                         </td>
@@ -343,6 +344,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                             value={order.status}
                             onChange={(e) => handleStatusChange(order.id, e.target.value)}
                             className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-accent focus:border-accent sm:text-sm rounded-md"
+                            aria-label="Change order status"
                           >
                             <option value="draft">Draft</option>
                             <option value="ordered">Ordered</option>
@@ -355,6 +357,8 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                              onClick={(e) => handleDownloadPO(e, order)}
                              className="text-gray-500 hover:text-gray-700"
                              title="Download PO"
+                             type="button"
+                             aria-label="Download Purchase Order"
                           >
                              <Download className="h-4 w-4" />
                           </button>
@@ -391,7 +395,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
                     {
                       icon: Download,
                       label: 'Download PO',
-                      onClick: (id) => handleDownloadPO({ stopPropagation: () => {} } as any, order),
+                      onClick: () => handleDownloadPO({ stopPropagation: () => {} } as any, order),
                       variant: 'default'
                     }
                   ]}
@@ -419,21 +423,21 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
           <div className="space-y-6">
             <div className="flex justify-end">
               {!isEditingSupplier ? (
-                <button onClick={() => setIsEditingSupplier(true)} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                <button onClick={() => setIsEditingSupplier(true)} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" type="button" aria-label="Edit supplier">
                   <Edit className="h-4 w-4 mr-2" /> Edit
                 </button>
               ) : (
                 <div className="flex space-x-2">
-                  <button onClick={() => { setIsEditingSupplier(false); setEditedSupplier(selectedSupplier); }} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Cancel</button>
-                  <button onClick={handleUpdateSupplier} className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-hover"><Save className="h-4 w-4 mr-2" /> Save</button>
+                  <button onClick={() => { setIsEditingSupplier(false); setEditedSupplier(selectedSupplier); }} className="inline-flex items-center px-3 py-1.5 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" type="button" aria-label="Cancel editing">Cancel</button>
+                  <button onClick={handleUpdateSupplier} className="inline-flex items-center px-3 py-1.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-primary hover:bg-primary-hover" type="button" aria-label="Save supplier changes"><Save className="h-4 w-4 mr-2" /> Save</button>
                 </div>
               )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div><h4 className="text-sm font-medium text-gray-500">Name</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.name} onChange={(e) => setEditedSupplier({ ...editedSupplier, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.name}</p>}</div>
-              <div><h4 className="text-sm font-medium text-gray-500">Email</h4>{isEditingSupplier ? <input type="email" value={editedSupplier.email} onChange={(e) => setEditedSupplier({ ...editedSupplier, email: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.email}</p>}</div>
-              <div><h4 className="text-sm font-medium text-gray-500">Phone</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.phone} onChange={(e) => setEditedSupplier({ ...editedSupplier, phone: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.phone}</p>}</div>
-              <div className="sm:col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingSupplier ? <textarea rows={3} value={editedSupplier.address} onChange={(e) => setEditedSupplier({ ...editedSupplier, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.address}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Name</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.name} onChange={(e) => setEditedSupplier({ ...editedSupplier, name: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Supplier name" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.name}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Email</h4>{isEditingSupplier ? <input type="email" value={editedSupplier.email} onChange={(e) => setEditedSupplier({ ...editedSupplier, email: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Supplier email" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.email}</p>}</div>
+              <div><h4 className="text-sm font-medium text-gray-500">Phone</h4>{isEditingSupplier ? <input type="text" value={editedSupplier.phone} onChange={(e) => setEditedSupplier({ ...editedSupplier, phone: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Supplier phone" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.phone}</p>}</div>
+              <div className="sm:col-span-2"><h4 className="text-sm font-medium text-gray-500">Address</h4>{isEditingSupplier ? <textarea rows={3} value={editedSupplier.address} onChange={(e) => setEditedSupplier({ ...editedSupplier, address: e.target.value })} className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 sm:text-sm" aria-label="Supplier address" /> : <p className="mt-1 text-sm text-gray-900">{selectedSupplier.address}</p>}</div>
             </div>
             <div className="flex justify-end pt-4 border-t"><button type="button" className="bg-white rounded-md border border-gray-300 shadow-sm px-4 py-2 text-base font-medium text-gray-700 hover:bg-gray-50 sm:text-sm min-h-[44px]" onClick={() => setIsSupplierModalOpen(false)}>Close</button></div>
           </div>

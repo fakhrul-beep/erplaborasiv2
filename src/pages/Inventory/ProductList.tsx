@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase, withRetry } from '../../lib/supabase';
-import { Product } from '../../types';
-import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, RefreshCw, Upload, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { MobileCard } from '../../components/MobileCard';
 import { useSettingsStore } from '../../store/settingsStore';
@@ -166,6 +165,7 @@ export default function ProductList({ type }: ProductListProps) {
            <button
             onClick={() => setIsImportModalOpen(true)}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
+            type="button"
           >
             <Upload className="h-4 w-4 mr-2" />
             Import Stok
@@ -173,6 +173,7 @@ export default function ProductList({ type }: ProductListProps) {
            <button
             onClick={() => fetchProducts()}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-3 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none min-h-[44px]"
+            type="button"
           >
             <RefreshCw className="h-4 w-4 mr-2" />
             Refresh
@@ -180,6 +181,7 @@ export default function ProductList({ type }: ProductListProps) {
           <button
             onClick={() => navigate(getAddUrl())}
             className="flex-1 sm:flex-none justify-center inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-primary-900 bg-accent hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent min-h-[44px]"
+            type="button"
           >
             <Plus className="-ml-1 mr-2 h-5 w-5" />
             Add Product
@@ -244,10 +246,10 @@ export default function ProductList({ type }: ProductListProps) {
                           {product.stock_quantity.toLocaleString('id-ID')}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button onClick={() => navigate(getEditUrl(product.id))} className="text-primary hover:text-primary-hover mr-4" aria-label="Edit product" title="Edit product">
+                          <button onClick={() => navigate(getEditUrl(product.id))} className="text-primary hover:text-primary-hover mr-4" aria-label="Edit product" title="Edit product" type="button">
                             <Edit className="h-4 w-4" />
                           </button>
-                          <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" aria-label="Delete product" title="Delete product">
+                          <button onClick={() => handleDelete(product.id)} className="text-red-600 hover:text-red-900" aria-label="Delete product" title="Delete product" type="button">
                             <Trash2 className="h-4 w-4" />
                           </button>
                         </td>
@@ -296,6 +298,7 @@ export default function ProductList({ type }: ProductListProps) {
                       setCurrentPage(1);
                     }}
                     className="mx-2 border-gray-300 rounded-md text-sm focus:ring-accent"
+                    aria-label="Items per page"
                   >
                     {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                   </select>
@@ -307,6 +310,8 @@ export default function ProductList({ type }: ProductListProps) {
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(p => p - 1)}
                     className="p-2 border rounded-md disabled:opacity-30 hover:bg-gray-50"
+                    type="button"
+                    aria-label="Previous Page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
@@ -318,6 +323,7 @@ export default function ProductList({ type }: ProductListProps) {
                         className={`px-3 py-1 text-sm rounded-md border ${
                           currentPage === i + 1 ? 'bg-primary text-white border-primary' : 'hover:bg-gray-50'
                         }`}
+                        type="button"
                       >
                         {i + 1}
                       </button>
@@ -327,6 +333,8 @@ export default function ProductList({ type }: ProductListProps) {
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(p => p + 1)}
                     className="p-2 border rounded-md disabled:opacity-30 hover:bg-gray-50"
+                    type="button"
+                    aria-label="Next Page"
                   >
                     <ChevronRight className="h-4 w-4" />
                   </button>

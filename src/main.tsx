@@ -22,9 +22,9 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: 20, color: 'red', fontFamily: 'system-ui' }}>
+        <div className="p-5 text-red-600 font-sans">
           <h1>Application Crashed</h1>
-          <details style={{ whiteSpace: 'pre-wrap' }}>
+          <details className="whitespace-pre-wrap">
             <summary>Error Details</summary>
             {this.state.error?.toString()}
             <br/>
@@ -32,7 +32,8 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode}, {hasErr
           </details>
           <button 
             onClick={() => window.location.reload()}
-            style={{ marginTop: 20, padding: '8px 16px', cursor: 'pointer' }}
+            className="mt-5 px-4 py-2 cursor-pointer border border-red-300 rounded hover:bg-red-50"
+            type="button"
           >
             Reload Page
           </button>
