@@ -158,40 +158,10 @@ export default function ShipmentDetail() {
 
   async function fetchShipment() {
     try {
-      const { data, error } = await withRetry(() => 
+      const { data: shipmentData, error } = await withRetry(() => 
         supabase
           .from('shipment_orders')
-          .select(`
-            id,
-            vendor_id,
-            status,
-            type,
-            category,
-            tracking_number,
-            actual_weight,
-            volumetric_weight,
-            total_weight,
-            dimension_p,
-            dimension_l,
-            dimension_t,
-            volume,
-            fragility_level,
-            requires_crane,
-            storage_temp,
-            storage_humidity,
-            shelf_life_days,
-            delivery_proof_url,
-            driver_signature,
-            gps_coordinates,
-            approval_status,
-            shipping_cost,
-            notes,
-            created_at,
-            updated_at,
-            vendor:shipping_vendors(*),
-            order:orders(id, status, order_date, customer:customers(name, email, phone, address)),
-            purchase_order:purchase_orders(id, status, order_date, supplier:suppliers(name, email, phone, address))
-          `)
+          .select('*')
           .eq('id', id)
           .single(),
         10,
@@ -199,27 +169,74 @@ export default function ShipmentDetail() {
       );
 
       if (error) throw error;
-      setShipment(data);
-      setFormData({
-        vendor_id: data.vendor_id || '',
-        tracking_number: data.tracking_number || '',
-        actual_weight: data.actual_weight || 0,
-        dimension_p: data.dimension_p || 0,
-        dimension_l: data.dimension_l || 0,
-        dimension_t: data.dimension_t || 0,
-        fragility_level: data.fragility_level || 'low',
-        notes: data.notes || ''
-      });
-    } catch (error: any) {
-      if (error.message?.includes('schema cache')) {
-        toast.error('Sistem sedang melakukan sinkronisasi database untuk memastikan data terbaru. Kami sedang mencoba memuat ulang secara otomatis. Jika tetap gagal, silakan refresh halaman dalam beberapa saat.', { 
-          id: 'schema-cache-error',
-          duration: 5000 
-        });
-      } else {
-        toast.error('Gagal mengambil data pengiriman: ' + error.message);
+
+      let vendor = null;
+      let order = null;
+      let purchaseOrder = null;
+
+      if (shipmentData.vendor_id) {
+        const { data } = await supabase.from('shipping_vendors').select('*').eq('id', shipmentData.vendor_id).single();
+        vendor = data;
       }
-    } finally {
+
+      if (shipmentData.order_id) {
+        const { data: orderData } = await supabase
+          .from('orders')
+          .select('id, status, order_date, customer_id')
+          .eq('id', shipmentData.order_id)
+          .single();
+        
+        if (orderData) {
+          let customer = null;
+          if (orderData.customer_id) {
+            const { data: customerData } = await supabase
+              .from('customers')
+              .select('name, email, phone, address')
+              .eq('id', orderData.customer_id)
+              .single();
+            customer = customerData;
+          }
+          order = { ...orderData, customer };
+        }
+      }
+
+      if (shipmentData.purchase_order_id) {
+        const { data: poData } = await supabase
+          .from('purchase_orders')
+          .select('id, status, order_date, supplier_id')
+          .eq('id', shipmentData.purchase_order_id)
+          .single();
+        
+        if (poData) {
+          let supplier = null;
+          if (poData.supplier_id) {
+            const { data: supplierData } = await supabase
+              .from('suppliers')
+              .select('name, email, phone, address')
+              .eq('id', poData.supplier_id)
+              .single();
+            supplier = supplierData;
+          }
+          purchaseOrder = { ...poData, supplier };
+        }
+      }
+
+      setShipment({ ...shipmentData, vendor, order, purchase_order: purchaseOrder });
+
+      setFormData({
+        vendor_id: shipmentData.vendor_id || '',
+        tracking_number: shipmentData.tracking_number || '',
+        actual_weight: shipmentData.actual_weight || 0,
+        dimension_p: shipmentData.dimension_p || 0,
+        dimension_l: shipmentData.dimension_l || 0,
+        dimension_t: shipmentData.dimension_t || 0,
+        fragility_level: shipmentData.fragility_level || 'low',
+        notes: shipmentData.notes || ''
+      });
+      setLoading(false);
+    } catch (error: any) {
+      console.error('Error fetching shipment:', error);
+      toast.error('Gagal memuat detail pengiriman');
       setLoading(false);
     }
   }

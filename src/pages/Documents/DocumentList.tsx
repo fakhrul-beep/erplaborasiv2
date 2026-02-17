@@ -24,6 +24,8 @@ export default function DocumentList() {
   const { formatCurrency } = useSettingsStore();
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'invoice' | 'po'>('all');
   
@@ -32,17 +34,29 @@ export default function DocumentList() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
-    fetchDocuments();
+    loadDocuments();
   }, []);
 
-  const fetchDocuments = async () => {
+  const loadDocuments = async () => {
     try {
       setLoading(true);
+
+      // Fetch reference data
+      const [customersRes, suppliersRes] = await Promise.all([
+        supabase.from('customers').select('id, name'),
+        supabase.from('suppliers').select('id, name')
+      ]);
+
+      const customersData = customersRes.data || [];
+      const suppliersData = suppliersRes.data || [];
+
+      setCustomers(customersData);
+      setSuppliers(suppliersData);
       
       // Fetch Orders (Invoices)
       const { data: orders, error: ordersError } = await supabase
         .from('orders')
-        .select('*, customers(*), order_items(*, products(*))')
+        .select('*, order_items(*, products(*))')
         .order('created_at', { ascending: false });
 
       if (ordersError) throw ordersError;
@@ -50,38 +64,48 @@ export default function DocumentList() {
       // Fetch Purchase Orders (POs)
       const { data: pos, error: posError } = await supabase
         .from('purchase_orders')
-        .select('*, suppliers(*), purchase_order_items(*, products(*))')
+        .select('*, purchase_order_items(*, products(*))')
         .order('created_at', { ascending: false });
 
       if (posError) throw posError;
 
       // Transform to common format
-      const invoiceDocs: DocumentItem[] = (orders || []).map((o: any) => ({
-        id: o.id,
-        type: 'invoice',
-        number: `INV-${o.id.slice(0, 8).toUpperCase()}`,
-        date: o.order_date || o.created_at,
-        entityName: o.customers?.name || 'Unknown Customer',
-        amount: o.total_amount,
-        status: o.payment_status,
-        originalData: { ...o, customer: o.customers, items: o.order_items.map((i:any) => ({...i, product: i.products})) } as Order
-      }));
+      const invoiceDocs: DocumentItem[] = (orders || []).map((o: any) => {
+        const customer = customersData.find((c: any) => c.id === o.customer_id);
+        const customerName = customer ? customer.name : 'Unknown Customer';
+        
+        return {
+          id: o.id,
+          type: 'invoice',
+          number: `INV-${o.id.slice(0, 8).toUpperCase()}`,
+          date: o.order_date || o.created_at,
+          entityName: customerName,
+          amount: o.total_amount,
+          status: o.payment_status,
+          originalData: { ...o, customer: customer || { name: 'Unknown' }, items: o.order_items.map((i:any) => ({...i, product: i.products})) } as Order
+        };
+      });
 
-      const poDocs: DocumentItem[] = (pos || []).map((p: any) => ({
-        id: p.id,
-        type: 'po',
-        number: `PO-${p.id.slice(0, 8).toUpperCase()}`,
-        date: p.order_date || p.created_at,
-        entityName: p.suppliers?.name || 'Unknown Supplier',
-        amount: p.total_amount,
-        status: p.status,
-        originalData: { ...p, supplier: p.suppliers, items: p.purchase_order_items.map((i:any) => ({...i, product: i.products})) } as PurchaseOrder
-      }));
+      const poDocs: DocumentItem[] = (pos || []).map((p: any) => {
+        const supplier = suppliersData.find((s: any) => s.id === p.supplier_id);
+        const supplierName = supplier ? supplier.name : 'Unknown Supplier';
+
+        return {
+          id: p.id,
+          type: 'po',
+          number: `PO-${p.id.slice(0, 8).toUpperCase()}`,
+          date: p.order_date || p.created_at,
+          entityName: supplierName,
+          amount: p.total_amount,
+          status: p.status,
+          originalData: { ...p, supplier: supplier || { name: 'Unknown' }, items: p.purchase_order_items.map((i:any) => ({...i, product: i.products})) } as PurchaseOrder
+        };
+      });
 
       setDocuments([...invoiceDocs, ...poDocs]);
-    } catch (error: any) {
-      console.error('Error fetching documents:', error);
-      toast.error('Failed to load documents');
+    } catch (error) {
+      console.error('Error loading documents:', error);
+      toast.error('Gagal memuat dokumen');
     } finally {
       setLoading(false);
     }

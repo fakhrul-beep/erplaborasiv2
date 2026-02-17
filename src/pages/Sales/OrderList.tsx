@@ -18,6 +18,7 @@ interface OrderListProps {
 
 export default function OrderList({ type }: OrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type
+  const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filteredCount, setFilteredCount] = useState(0);
   const [filters, setFilters] = useState<FilterState | null>(null);
@@ -38,15 +39,22 @@ export default function OrderList({ type }: OrderListProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchOrders();
+    loadData();
   }, [type, filters]);
 
-  const fetchOrders = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
+
+      // Fetch Customers
+      const { data: customersData, error: customersError } = await supabase.from('customers').select('*');
+      const customersList = customersData || [];
+      if (!customersError) setCustomers(customersList);
+
+      // Fetch Orders
       let query = supabase
         .from('orders')
-        .select('*, customers(*), order_items(*, products(*))');
+        .select('*, order_items(*, products(*))');
 
       if (type) {
         query = query.eq('type', type);
@@ -55,7 +63,7 @@ export default function OrderList({ type }: OrderListProps) {
       // Apply Filters
       if (filters) {
         if (filters.search) {
-          query = query.or(`id.ilike.%${filters.search}%,customers.name.ilike.%${filters.search}%`);
+          query = query.ilike('id', `%${filters.search}%`);
         }
         if (filters.status) {
           query = query.eq('status', filters.status);
@@ -82,7 +90,7 @@ export default function OrderList({ type }: OrderListProps) {
           
           switch (filters.sortBy) {
             case 'customer':
-              query = query.order('name', { foreignTable: 'customers', ascending });
+              query = query.order('created_at', { ascending });
               break;
             case 'amount':
               query = query.order('total_amount', { ascending });
@@ -107,20 +115,41 @@ export default function OrderList({ type }: OrderListProps) {
 
       if (error) throw error;
       
-      // Map data to match expected structure
-      const mappedOrders = (data || []).map(order => ({
+      // Map data using LOCAL customersList
+      let mappedOrders = (data || []).map(order => ({
         ...order,
-        customer: order.customers || order.customer, // Handle both
+        customer: customersList.find((c: any) => c.id === order.customer_id) || { name: 'Unknown' },
         items: (order.order_items || []).map((item: any) => ({
           ...item,
           product: item.products || item.product
         }))
       }));
 
+      // Client-side filtering for customer name
+      if (filters && filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        mappedOrders = mappedOrders.filter((order: any) => 
+          order.id.toLowerCase().includes(searchLower) ||
+          order.customer.name.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Client-side sorting for customer name
+      if (filters && filters.sortBy === 'customer') {
+        const ascending = filters.sortOrder === 'asc';
+        mappedOrders.sort((a: any, b: any) => {
+          const nameA = a.customer.name.toLowerCase();
+          const nameB = b.customer.name.toLowerCase();
+          if (nameA < nameB) return ascending ? -1 : 1;
+          if (nameA > nameB) return ascending ? 1 : -1;
+          return 0;
+        });
+      }
+
       setOrders(mappedOrders);
       setFilteredCount(mappedOrders.length);
     } catch (error: any) {
-      console.error('Error fetching orders:', error);
+      console.error('Error loading orders:', error);
       let errorMessage = 'Failed to load orders';
       
       if (error.message?.includes('failed to parse order')) {

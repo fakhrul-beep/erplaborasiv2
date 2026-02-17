@@ -59,12 +59,36 @@ export default function StockOpnameDetail({ type }: Props) {
       // Fetch Items
       const { data: itemsData, error: itemsError } = await supabase
         .from('stock_opname_items')
-        .select('*, product:products(*)')
-        .eq('session_id', id)
-        .order('product(name)');
+        .select('*')
+        .eq('session_id', id);
       
       if (itemsError) throw itemsError;
-      setItems(itemsData || []);
+
+      let finalItems = itemsData || [];
+
+      if (finalItems.length > 0) {
+        const productIds = finalItems.map((i: any) => i.product_id);
+        const { data: productsData } = await supabase
+          .from('products')
+          .select('*')
+          .in('id', productIds);
+        
+        const productsMap = new Map((productsData || []).map((p: any) => [p.id, p]));
+
+        finalItems = finalItems.map((item: any) => ({
+          ...item,
+          product: productsMap.get(item.product_id)
+        }));
+
+        // Sort by product name
+        finalItems.sort((a: any, b: any) => {
+          const nameA = a.product?.name || '';
+          const nameB = b.product?.name || '';
+          return nameA.localeCompare(nameB);
+        });
+      }
+
+      setItems(finalItems);
 
     } catch (error: any) {
       console.error('Error fetching data:', error);

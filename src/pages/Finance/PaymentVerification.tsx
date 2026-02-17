@@ -10,6 +10,10 @@ import { useSettingsStore } from '../../store/settingsStore';
 export default function PaymentVerification() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -29,26 +33,66 @@ export default function PaymentVerification() {
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
 
   useEffect(() => {
-    fetchPayments();
+    loadData();
   }, []);
 
-  const fetchPayments = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
+
+      // Fetch reference data
+      const [ordersRes, customersRes, poRes, suppliersRes] = await Promise.all([
+        supabase.from('orders').select('id, total_amount, type, customer_id'),
+        supabase.from('customers').select('id, name'),
+        supabase.from('purchase_orders').select('id, total_amount, type, supplier_id'),
+        supabase.from('suppliers').select('id, name')
+      ]);
+
+      const ordersData = ordersRes.data || [];
+      const customersData = customersRes.data || [];
+      const poData = poRes.data || [];
+      const suppliersData = suppliersRes.data || [];
+
+      setOrders(ordersData);
+      setCustomers(customersData);
+      setPurchaseOrders(poData);
+      setSuppliers(suppliersData);
+
+      // Fetch payments
       const { data, error } = await supabase
         .from('payments')
-        .select(`
-          *,
-          order:orders(id, total_amount, type, customer:customers(name)),
-          purchase_order:purchase_orders(id, total_amount, type, supplier:suppliers(name))
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setPayments(data || []);
+      
+      const mapped = (data || []).map((p: any) => {
+        const order = ordersData.find((o: any) => o.id === p.order_id);
+        const purchaseOrder = poData.find((po: any) => po.id === p.purchase_order_id);
+        
+        // Enhance with related data
+        let enhancedOrder = null;
+        if (order) {
+          const customer = customersData.find((c: any) => c.id === order.customer_id);
+          enhancedOrder = { ...order, customer: customer || { name: 'Unknown' } };
+        }
+
+        let enhancedPO = null;
+        if (purchaseOrder) {
+          const supplier = suppliersData.find((s: any) => s.id === purchaseOrder.supplier_id);
+          enhancedPO = { ...purchaseOrder, supplier: supplier || { name: 'Unknown' } };
+        }
+
+        return {
+          ...p,
+          order: enhancedOrder,
+          purchase_order: enhancedPO
+        };
+      });
+
+      setPayments(mapped);
     } catch (error) {
-      console.error('Error fetching payments:', error);
-      toast.error('Failed to load payments');
+      console.error('Error loading data:', error);
     } finally {
       setLoading(false);
     }

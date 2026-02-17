@@ -72,7 +72,7 @@ export default function DeliveryReports() {
       const cacheKey = `reports-${JSON.stringify(filters)}`;
 
       const { data, error } = await withRetry(() => {
-        let query = supabase.from('shipment_orders').select('*, vendor:shipping_vendors(name)');
+        let query = supabase.from('shipment_orders').select('*');
 
         if (filters.category !== 'all') {
           query = query.eq('category', filters.category);
@@ -94,16 +94,40 @@ export default function DeliveryReports() {
       }, 5, 1000, cacheKey);
 
       if (error) throw error;
-      console.log(`Fetched ${data?.length || 0} shipment orders for report`);
+
+      // Fetch vendors manually to avoid PGRST200
+      const vendorIds = Array.from(new Set((data || []).map((item: any) => item.vendor_id).filter(Boolean)));
+      let vendorsMap: Record<string, any> = {};
+      
+      if (vendorIds.length > 0) {
+        const { data: vendorsData } = await supabase
+          .from('shipping_vendors')
+          .select('id, name')
+          .in('id', vendorIds);
+          
+        if (vendorsData) {
+          vendorsData.forEach(v => {
+            vendorsMap[v.id] = v;
+          });
+        }
+      }
+
+      // Map vendors to data
+      const enrichedData = (data || []).map((item: any) => ({
+        ...item,
+        vendor: vendorsMap[item.vendor_id] || { name: 'Unknown' }
+      }));
+
+      console.log(`Fetched ${enrichedData.length} shipment orders for report`);
 
       // Process Stats
-      const totalCount = data?.length || 0;
-      const totalCost = (data || []).reduce((sum: number, s: any) => sum + (Number(s.shipping_cost) || 0), 0);
-      const avgWeight = totalCount > 0 ? (data || []).reduce((sum: number, s: any) => sum + (Number(s.total_weight) || 0), 0) / totalCount : 0;
-      const pendingCount = (data || []).filter((s: any) => s.status === 'pending').length;
+      const totalCount = enrichedData.length;
+      const totalCost = enrichedData.reduce((sum: number, s: any) => sum + (Number(s.shipping_cost) || 0), 0);
+      const avgWeight = totalCount > 0 ? enrichedData.reduce((sum: number, s: any) => sum + (Number(s.total_weight) || 0), 0) / totalCount : 0;
+      const pendingCount = enrichedData.filter((s: any) => s.status === 'pending').length;
 
       // Status Distribution
-      const statusCounts = (data || []).reduce((acc: any, s: any) => {
+      const statusCounts = enrichedData.reduce((acc: any, s: any) => {
         acc[s.status] = (acc[s.status] || 0) + 1;
         return acc;
       }, {});
@@ -111,7 +135,7 @@ export default function DeliveryReports() {
 
       // Monthly Trend (Last 6 months)
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      const trendData = data.reduce((acc: any, s) => {
+      const trendData = enrichedData.reduce((acc: any, s: any) => {
         const date = new Date(s.created_at);
         const month = months[date.getMonth()];
         acc[month] = (acc[month] || 0) + 1;
@@ -120,7 +144,7 @@ export default function DeliveryReports() {
       const monthlyTrend = months.map(m => ({ name: m, count: trendData[m] || 0 }));
 
       // Vendor Performance
-      const vendorPerf = data.reduce((acc: any, s) => {
+      const vendorPerf = enrichedData.reduce((acc: any, s: any) => {
         const vName = s.vendor?.name || 'Unknown';
         if (!acc[vName]) acc[vName] = { name: vName, count: 0, totalCost: 0 };
         acc[vName].count += 1;

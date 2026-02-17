@@ -16,6 +16,7 @@ interface ProductListProps {
 
 export default function ProductList({ type }: ProductListProps) {
   const [products, setProducts] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   
@@ -38,6 +39,15 @@ export default function ProductList({ type }: ProductListProps) {
   const navigate = useNavigate();
   const { formatCurrency } = useSettingsStore();
 
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase.from('suppliers').select('id, name');
+      if (!error && data) setSuppliers(data);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
+
   const fetchProducts = async (signal?: AbortSignal) => {
     try {
       if (!signal?.aborted) setLoading(true);
@@ -45,7 +55,7 @@ export default function ProductList({ type }: ProductListProps) {
       const { data, error } = await withRetry(async () => {
         let query = supabase
           .from('products')
-          .select('*, suppliers (id, name)');
+          .select('*');
         
         if (type) {
           query = query.eq('type', type);
@@ -94,6 +104,7 @@ export default function ProductList({ type }: ProductListProps) {
   });
 
   useEffect(() => {
+    fetchSuppliers();
     const controller = new AbortController();
     fetchProducts(controller.signal);
     return () => controller.abort();
@@ -120,9 +131,9 @@ export default function ProductList({ type }: ProductListProps) {
   };
 
   const getSupplierName = (product: any) => {
-    const s = product.suppliers;
-    if (!s) return 'Unknown Supplier';
-    return Array.isArray(s) ? (s[0]?.name || 'Unknown') : (s.name || 'Unknown');
+    if (!product.supplier_id) return 'Unknown Supplier';
+    const supplier = suppliers.find(s => s.id === product.supplier_id);
+    return supplier ? supplier.name : 'Unknown Supplier';
   };
 
   const getTitle = () => {
@@ -143,10 +154,9 @@ export default function ProductList({ type }: ProductListProps) {
     return `/inventory/${id}/edit`;
   };
 
-  // Categories & Suppliers for filter
+  // Categories for filter
   const categories = Array.from(new Set(products.map(p => p.category).filter(Boolean)));
-  const suppliers = Array.from(new Set(products.map(p => p.suppliers).filter(Boolean)))
-    .map((s: any) => ({ id: s.id, name: s.name }));
+  // Suppliers are fetched from DB directly in useEffect
 
   return (
     <div className="space-y-6">

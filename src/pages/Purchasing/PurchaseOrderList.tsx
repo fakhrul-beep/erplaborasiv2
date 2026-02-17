@@ -17,6 +17,7 @@ interface PurchaseOrderListProps {
 
 export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
   const [orders, setOrders] = useState<any[]>([]); // Relaxed type for safety
+  const [suppliers, setSuppliers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filteredCount, setFilteredCount] = useState(0);
   const [filters, setFilters] = useState<FilterState | null>(null);
@@ -31,8 +32,18 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    fetchSuppliers();
     fetchOrders();
   }, [type, filters]);
+
+  const fetchSuppliers = async () => {
+    try {
+      const { data, error } = await supabase.from('suppliers').select('*');
+      if (!error && data) setSuppliers(data);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+    }
+  };
 
   const fetchOrders = async () => {
     try {
@@ -40,7 +51,7 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
       // Fetch with standard relationship format
       let query = supabase
         .from('purchase_orders')
-        .select('*, suppliers(*)');
+        .select('*');
 
       if (type) {
         query = query.eq('type', type);
@@ -49,7 +60,8 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
       // Apply Filters
       if (filters) {
         if (filters.search) {
-          query = query.or(`id.ilike.%${filters.search}%,suppliers.name.ilike.%${filters.search}%`);
+          // Only search by ID, remove supplier name search here, will do client side
+          query = query.ilike('id', `%${filters.search}%`);
         }
         if (filters.status) {
           query = query.eq('status', filters.status);
@@ -73,7 +85,9 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
           
           switch (filters.sortBy) {
             case 'customer':
-              query = query.order('name', { foreignTable: 'suppliers', ascending });
+              // query = query.order('name', { foreignTable: 'suppliers', ascending });
+              // Cannot sort by foreign table without join. Fallback to created_at
+              query = query.order('created_at', { ascending });
               break;
             case 'amount':
               query = query.order('total_amount', { ascending });
@@ -94,15 +108,36 @@ export default function PurchaseOrderList({ type }: PurchaseOrderListProps) {
         query = query.order('created_at', { ascending: false });
       }
 
-      const { data, error } = await query;
+      const { data, count, error } = await query;
 
       if (error) throw error;
       
       // Map data to ensure 'supplier' property is populated
-      const mappedOrders = (data || []).map(order => ({
+      let mappedOrders = (data || []).map(order => ({
         ...order,
-        supplier: order.suppliers || order.supplier // Handle both cases
+        supplier: suppliers.find(s => s.id === order.supplier_id) || { name: 'Unknown' }
       }));
+
+      // Client-side filtering for supplier name
+      if (filters && filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        mappedOrders = mappedOrders.filter((order: any) => 
+          order.id.toLowerCase().includes(searchLower) ||
+          order.supplier.name.toLowerCase().includes(searchLower)
+        );
+      }
+
+      // Client-side sorting for supplier name
+      if (filters && filters.sortBy === 'customer') {
+        const ascending = filters.sortOrder === 'asc';
+        mappedOrders.sort((a: any, b: any) => {
+          const nameA = a.supplier.name.toLowerCase();
+          const nameB = b.supplier.name.toLowerCase();
+          if (nameA < nameB) return ascending ? -1 : 1;
+          if (nameA > nameB) return ascending ? 1 : -1;
+          return 0;
+        });
+      }
 
       setOrders(mappedOrders);
       setFilteredCount(mappedOrders.length);

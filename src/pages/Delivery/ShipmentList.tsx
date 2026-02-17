@@ -91,8 +91,8 @@ export default function ShipmentList({ type }: ShipmentListProps) {
             tracking_number,
             created_at,
             vendor_id,
-            order:orders(id, customer:customers(name)),
-            purchase_order:purchase_orders(id, supplier:suppliers(name))
+            order_id,
+            purchase_order_id
           `)
           .eq('type', type)
           .order('created_at', { ascending: false }),
@@ -105,7 +105,56 @@ export default function ShipmentList({ type }: ShipmentListProps) {
       if (signal?.aborted) return;
 
       if (error) throw error;
-      setShipments(data || []);
+
+      let enrichedData = data || [];
+
+      // Fetch related Orders and Customers
+      const orderIds = Array.from(new Set(enrichedData.map((s: any) => s.order_id).filter(Boolean)));
+      if (orderIds.length > 0) {
+        const { data: orders } = await supabase.from('orders').select('id, customer_id').in('id', orderIds);
+        const customerIds = Array.from(new Set(orders?.map((o: any) => o.customer_id).filter(Boolean)));
+        
+        let customersMap: any = {};
+        if (customerIds.length > 0) {
+            const { data: customers } = await supabase.from('customers').select('id, name').in('id', customerIds);
+            customers?.forEach((c: any) => customersMap[c.id] = c);
+        }
+        
+        const ordersMap = orders?.reduce((acc: any, o: any) => {
+            acc[o.id] = { ...o, customer: customersMap[o.customer_id] };
+            return acc;
+        }, {}) || {};
+        
+        enrichedData = enrichedData.map((s: any) => ({
+            ...s,
+            order: ordersMap[s.order_id]
+        }));
+      }
+
+      // Fetch related Purchase Orders and Suppliers
+      const poIds = Array.from(new Set(enrichedData.map((s: any) => s.purchase_order_id).filter(Boolean)));
+      if (poIds.length > 0) {
+        const { data: pos } = await supabase.from('purchase_orders').select('id, supplier_id').in('id', poIds);
+        const supplierIds = Array.from(new Set(pos?.map((p: any) => p.supplier_id).filter(Boolean)));
+        
+        let suppliersMap: any = {};
+        if (supplierIds.length > 0) {
+            const { data: suppliers } = await supabase.from('suppliers').select('id, name').in('id', supplierIds);
+            suppliers?.forEach((s: any) => suppliersMap[s.id] = s);
+        }
+        
+        const posMap = pos?.reduce((acc: any, p: any) => {
+            acc[p.id] = { ...p, supplier: suppliersMap[p.supplier_id] };
+            return acc;
+        }, {}) || {};
+        
+        enrichedData = enrichedData.map((s: any) => ({
+            ...s,
+            purchase_order: posMap[s.purchase_order_id]
+        }));
+      }
+
+      setShipments(enrichedData);
     } catch (error: any) {
       if (signal?.aborted || error.message === 'Aborted') return;
       

@@ -27,52 +27,11 @@ export default function StockMovementDashboard() {
   const { user, profile, loading: authLoading } = useAuthStore();
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(false);
+  const [products, setProducts] = useState<any[]>([]);
+  const [warehouses, setWarehouses] = useState<any[]>([]);
+  const [profiles, setProfiles] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'equipment' | 'raw_material'>('all');
-
-  const fetchMovements = async () => {
-    try {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('inventory_movements')
-        .select(`
-          *,
-          products ( name, sku, category ),
-          warehouses ( name ),
-          users ( email )
-        `)
-        .order('created_at', { ascending: false })
-        .limit(200);
-
-      if (error) throw error;
-
-      const mapped = (data || []).map((row: any) => ({
-        id: row.id,
-        product_id: row.product_id,
-        warehouse_id: row.warehouse_id,
-        movement_type: row.movement_type,
-        quantity: row.quantity,
-        balance_after: row.balance_after,
-        reference_type: row.reference_type,
-        reference_id: row.reference_id,
-        user_id: row.user_id,
-        notes: row.notes,
-        created_at: row.created_at,
-        product_name: row.products?.name,
-        product_sku: row.products?.sku,
-        product_category: row.products?.category,
-        warehouse_name: row.warehouses?.name,
-        user_email: row.users?.email,
-      }));
-
-      setMovements(mapped);
-    } catch (error: any) {
-      console.error('Error fetching stock movements:', error);
-      toast.error('Failed to load stock movements: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
     const isAuthorized = 
@@ -80,9 +39,71 @@ export default function StockMovementDashboard() {
       (user?.email === 'fakhrul@ternakmart.com');
 
     if (isAuthorized) {
-      fetchMovements();
+      loadDashboardData();
     }
   }, [profile, user]);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch reference data
+      const [productsRes, warehousesRes, profilesRes] = await Promise.all([
+        supabase.from('products').select('id, name, sku, category'),
+        supabase.from('warehouses').select('id, name'),
+        supabase.from('profiles').select('id, email, full_name')
+      ]);
+
+      const productsData = productsRes.data || [];
+      const warehousesData = warehousesRes.data || [];
+      const profilesData = profilesRes.data || [];
+
+      setProducts(productsData);
+      setWarehouses(warehousesData);
+      setProfiles(profilesData);
+
+      // Fetch movements
+      const { data: movementsData, error } = await supabase
+        .from('inventory_movements')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(200);
+
+      if (error) throw error;
+
+      const mapped = (movementsData || []).map((row: any) => {
+        const product = productsData.find((p: any) => p.id === row.product_id);
+        const warehouse = warehousesData.find((w: any) => w.id === row.warehouse_id);
+        const userProfile = profilesData.find((p: any) => p.id === row.user_id);
+        
+        return {
+          id: row.id,
+          product_id: row.product_id,
+          warehouse_id: row.warehouse_id,
+          movement_type: row.movement_type,
+          quantity: row.quantity,
+          balance_after: row.balance_after,
+          reference_type: row.reference_type,
+          reference_id: row.reference_id,
+          user_id: row.user_id,
+          notes: row.notes,
+          created_at: row.created_at,
+          product_name: product?.name,
+          product_sku: product?.sku,
+          product_category: product?.category,
+          warehouse_name: warehouse?.name,
+          user_email: userProfile?.email || 'Unknown User',
+        };
+      });
+
+      setMovements(mapped);
+    } catch (error: any) {
+      console.error('Error loading dashboard data:', error);
+      toast.error('Gagal memuat data dashboard');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (authLoading) {
     return <div className="p-8 text-center">Loading...</div>;
